@@ -1,4 +1,23 @@
 {
   "hello": "Hello",
-  "title": "My App with MUI & Next Themes"
+  "google": "Google",
+  "facebook": "Facebook",
+  "or": "You can also use",
+  "by_continuing": "By continuing, you agree to our",
+  "terms_and_policies": "Terms and Policies",
+  "sign_in": "Sign In",
+  "sign_up": "Sign Up",
+  "email": "Email",
+  "password": "Password",
+  "email_required": "Email is required",
+  "email_invalid": "Please enter a valid email",
+  "password_required": "Password is required",
+  "password_min_length": "Password must be at least 6 characters",
+  "continue": "Continue",
+  "create_account": "Create Account",
+  "remember_me": "Remember me",
+  "forgot_password": "Forgot password?",
+  "copyright": "© 2025 SellBridge",
+  "privacy_policy": "Privacy Policy",
+  "authentication": "Sign in or sign up"
 }
