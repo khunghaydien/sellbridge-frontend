@@ -6,8 +6,112 @@ import { ThemeProvider as MuiThemeProvider } from '@mui/material/styles'
 import CssBaseline from '@mui/material/CssBaseline'
 import { createTheme } from '@mui/material/styles'
 import { useTheme } from 'next-themes'
-const components = {
-}
+const getcomponent = (isDark: boolean) => ({
+  MuiOutlinedInput: {
+    styleOverrides: {
+      input: {
+        height: "50px",
+        padding: "0 12px",
+      },
+      root: {
+        borderRadius: 8,
+        "& .MuiOutlinedInput-notchedOutline": {
+          borderColor: isDark ? "hsl(20, 5.9%, 90%)" : "hsl(20, 5.9%, 90%)",
+        },
+        "&:hover": {
+          "& .MuiOutlinedInput-notchedOutline": {
+            border: `1px solid ${isDark ? "hsl(20, 5.9%, 90%)" : "hsl(20, 5.9%, 90%)"}`,
+          },
+        },
+        "&.Mui-focused": {
+          "& .MuiOutlinedInput-notchedOutline": {
+            border: `1px solid ${isDark ? "hsl(20, 5.9%, 90%)" : "hsl(20, 5.9%, 90%)"}`,
+          },
+        },
+      },
+    },
+  },
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          fontSize: "16px",
+          fontWeight: 600,
+          height: "50px",
+          borderRadius: 8,
+          textTransform: "none" as const,
+        },
+        containedPrimary: {
+          color: "#ffffff !important",
+          "&:hover": {
+            color: "#ffffff !important",
+          },
+          "&:focus": {
+            color: "#ffffff !important",
+          },
+          "&:active": {
+            color: "#ffffff !important",
+          },
+        },
+      },
+    },
+  MuiTabs: {
+    styleOverrides: {
+      root: {
+        borderBottom: "none",
+      },
+      indicator: {
+        backgroundColor: isDark ? "hsl(20.5, 90.2%, 48.2%)" : "hsl(24.6, 95%, 53.1%)",
+        height: 2,
+      },
+    },
+  },
+  MuiTab: {
+    styleOverrides: {
+      root: {
+        textTransform: "none" as const,
+        fontSize: "16px",
+        fontWeight: 500,
+        color: isDark ? "hsl(24, 5.4%, 63.9%)" : "hsl(25, 5.3%, 44.7%)",
+        "&.Mui-selected": {
+          color: isDark ? "hsl(60, 9.1%, 97.8%)" : "hsl(20, 14.3%, 4.1%)",
+          fontWeight: 600,
+        },
+        "&:hover": {
+          color: isDark ? "hsl(20.5, 90.2%, 48.2%)" : "hsl(24.6, 95%, 53.1%)",
+        },
+      },
+    },
+  },
+  MuiCheckbox: {
+    styleOverrides: {
+      root: {
+        color: isDark ? "hsl(24, 5.4%, 63.9%)" : "hsl(25, 5.3%, 44.7%)",
+        "&.Mui-checked": {
+          color: isDark ? "hsl(20.5, 90.2%, 48.2%)" : "hsl(24.6, 95%, 53.1%)",
+        },
+        "&:hover": {
+          backgroundColor: isDark ? "hsl(20.5, 90.2%, 48.2%, 0.1)" : "hsl(24.6, 95%, 53.1%, 0.1)",
+        },
+      },
+    },
+  },
+  MuiFormControlLabel: {
+    styleOverrides: {
+      label: {
+        fontSize: "14px",
+        color: isDark ? "hsl(60, 9.1%, 97.8%)" : "hsl(20, 14.3%, 4.1%)",
+      },
+    },
+  },
+  MuiLink: {
+    styleOverrides: {
+      root: {
+        textDecoration: "none",
+      },
+    },
+  },
+})
+
 // Create light theme
 const lightTheme = createTheme({
   palette: {
@@ -40,7 +144,7 @@ const lightTheme = createTheme({
   shape: {
     borderRadius: 8, // Matches --radius: 0.5rem
   },
-  components: components,
+  components: getcomponent(false),
 })
 
 // Create dark theme
@@ -75,7 +179,7 @@ const darkTheme = createTheme({
   shape: {
     borderRadius: 8,
   },
-  components: components,
+  components: getcomponent(true),
 })
 
 // Internal MUI Theme Provider Component
