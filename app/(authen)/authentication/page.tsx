@@ -1,4 +1,4 @@
-import { Authentication } from "@/feature/auth";
+import { Authentication } from "@/features/auth";
 
 export default function page() {
     return (

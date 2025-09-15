@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
-import { ThemeProvider } from "@/component/theme/theme-provider";
 import { getMessages, getLocale } from "next-intl/server";
 import { NextIntlClientProvider } from "next-intl";
-import { SessionProvider } from "@/provider/session-provider";
+import { SessionProvider } from "@/providers/session-provider";
+import { ThemeProvider } from "@/providers/theme-provider";
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
   variable: "--font-geist-sans",

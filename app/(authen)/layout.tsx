@@ -1,7 +1,6 @@
 import Image from "next/image";
-import Link from "next/link";
-import { ThemeToggle } from "@/component/theme/theme-toggle";
-import AppFooter from "@/component/layout/app-footer";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
+import AppFooter from "@/components/layout/app-footer";
 import { useTranslations } from "next-intl";
 
 export default function layout({ children }: { children: React.ReactNode }) {
@@ -35,7 +34,7 @@ export default function layout({ children }: { children: React.ReactNode }) {
                                 />
                             </div>
                             <div className="flex flex-col items-center max-w-xs">
-                               <h1 className="text-[40px] font-bold text-primary">SELLBRIDGE</h1>
+                                <h1 className="text-[40px] font-bold text-primary">SELLBRIDGE</h1>
                             </div>
                         </div>
                     </div>
