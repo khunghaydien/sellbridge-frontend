@@ -3,7 +3,7 @@ import GoogleProvider from "next-auth/providers/google";
 import FacebookProvider from "next-auth/providers/facebook";
 import CredentialsProvider from "next-auth/providers/credentials";
 import jwt, { JwtPayload } from "jsonwebtoken";
-import { authApiClient } from "./api.service";
+import { ApiResponse, authFetchClient } from "./api.service";
 
 declare module "next-auth" {
     interface JWT {
@@ -53,18 +53,18 @@ export const authOptions: NextAuthOptions = {
                 }
 
                 try {
-                    const response = await authApiClient.post("/auth/sign-in", {
+                    const response = await authFetchClient.post("/auth/sign-in", {
                         email: credentials.email,
                         password: credentials.password,
                     });
 
-                    const user = response.data;
-                    if (user?.id) {
+                    const user = response as ApiResponse;
+                    if (user.data?.id && user.data?.name && user.data?.email && user.data?.image) {
                         return {
-                            id: user.id,
-                            name: user.name,
-                            email: user.email,
-                            image: user.image,
+                            id: user.data.id,
+                            name: user.data.name,
+                            email: user.data.email,
+                            image: user.data.image,
                         };
                     }
                     return null;
@@ -95,30 +95,30 @@ export const authOptions: NextAuthOptions = {
         },
     },
     callbacks: {
-        // async signIn({ user, account }) {
-        //     if (account?.provider === "credentials") {
-        //         // For credentials, user is already authenticated in authorize function
-        //         return true;
-        //     }
+        async signIn({ user, account }) {
+            if (account?.provider === "credentials") {
+                // For credentials, user is already authenticated in authorize function
+                return true;
+            }
 
-        //     // For OAuth providers (Google, Facebook)
-        //     if (user) {
-        //         try {
-        //             const response = await authApiClient.post("/auth/authorization-sign-in", {
-        //                 name: user.name,
-        //                 email: user.email,
-        //                 image: user.image,
-        //                 provider: account?.provider,
-        //             });
+            // For OAuth providers (Google, Facebook)
+            if (user) {
+                try {
+                    const response = await authFetchClient.post("/auth/authorization-sign-in", {
+                        name: user.name,
+                        email: user.email,
+                        image: user.image,
+                        provider: account?.provider,
+                    });
 
-        //             return !!response?.data?.id;
-        //         } catch (error) {
-        //             console.error("Authorization sign-in error:", error);
-        //             return false;
-        //         }
-        //     }
-        //     return false;
-        // },
+                    return !!(response as any)?.data?.id;
+                } catch (error) {
+                    console.error("Authorization sign-in error:", error);
+                    return false;
+                }
+            }
+            return false;
+        },
         async jwt({ token, user }) {
             if (user) {
                 token.id = user.id;
@@ -145,8 +145,8 @@ export class AuthService {
         password: string;
     }) {
         try {
-            const response = await authApiClient.post("/auth/sign-up", userData);
-            return response.data;
+            const response = await authFetchClient.post("/auth/sign-up", userData);
+            return response as ApiResponse;
         } catch (error: any) {
             throw new Error(error.message || "Sign up failed");
         }
@@ -154,8 +154,8 @@ export class AuthService {
 
     static async forgotPassword(email: string) {
         try {
-            const response = await authApiClient.post("/auth/forgot-password", { email });
-            return response.data;
+            const response = await authFetchClient.post("/auth/forgot-password", { email });
+            return response as ApiResponse;
         } catch (error: any) {
             throw new Error(error.message || "Failed to send reset email");
         }
@@ -166,8 +166,8 @@ export class AuthService {
         newPassword: string;
     }) {
         try {
-            const response = await authApiClient.post("/auth/change-password", data);
-            return response.data;
+            const response = await authFetchClient.post("/auth/change-password", data);
+            return response as ApiResponse;
         } catch (error: any) {
             throw new Error(error.message || "Failed to change password");
         }
