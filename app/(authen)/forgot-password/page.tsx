@@ -1,4 +1,4 @@
-import { ForgotPassword } from "@/feature/auth";
+import { ForgotPassword } from "@/features/auth";
 
 export default function page() {
   return (

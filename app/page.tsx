@@ -1,10 +1,10 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useAuth } from "@/component/auth/use-auth";
+import { useAuth } from "@/hooks/use-auth";
 import Link from "next/link";
 import { Button } from "@mui/material";
-import UserProfile from "@/component/auth/user-profile";
+import UserProfile from "@/features/auth/hooks/user-profile";
 
 export default function Home() {
   const t = useTranslations();
