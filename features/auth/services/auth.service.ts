@@ -96,30 +96,30 @@ export const authOptions: NextAuthOptions = {
         },
     },
     callbacks: {
-        async signIn({ user, account }) {
-            if (account?.provider === "credentials") {
-                // For credentials, user is already authenticated in authorize function
-                return true;
-            }
+        // async signIn({ user, account }) {
+        //     if (account?.provider === "credentials") {
+        //         // For credentials, user is already authenticated in authorize function
+        //         return true;
+        //     }
 
-            // For OAuth providers (Google, Facebook)
-            if (user) {
-                try {
-                    const response = await authFetchClient.post("/auth/authorization-sign-in", {
-                        name: user.name,
-                        email: user.email,
-                        image: user.image,
-                        provider: account?.provider,
-                    });
+        //     // For OAuth providers (Google, Facebook)
+        //     if (user) {
+        //         try {
+        //             const response = await authFetchClient.post("/auth/authorization-sign-in", {
+        //                 name: user.name,
+        //                 email: user.email,
+        //                 image: user.image,
+        //                 provider: account?.provider,
+        //             });
 
-                    return !!(response as any)?.data?.id;
-                } catch (error) {
-                    console.error("Authorization sign-in error:", error);
-                    return false;
-                }
-            }
-            return false;
-        },
+        //             return !!(response as any)?.data?.id;
+        //         } catch (error) {
+        //             console.error("Authorization sign-in error:", error);
+        //             return false;
+        //         }
+        //     }
+        //     return false;
+        // },
         async jwt({ token, user }) {
             if (user) {
                 token.id = user.id;

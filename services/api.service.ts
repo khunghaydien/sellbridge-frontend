@@ -2,7 +2,7 @@
 // FETCH API SERVICE - PROFESSIONAL ARCHITECTURE
 // =================================================================
 
-export const BASE_URL = process.env.NEXTAUTH_URL;
+export const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 const FAILED_TO_REFRESH_TOKEN_ERROR = "FAILED_TO_REFRESH_TOKEN_ERROR";
 
 // Các key để lưu token trong localStorage
