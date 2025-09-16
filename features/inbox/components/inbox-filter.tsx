@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useState } from "react";
-import clsx from "clsx";
+import { IconButton, Tooltip } from "@mui/material";
 import {
     IconMessageCircle,
     IconMail,
@@ -14,11 +14,26 @@ import {
     IconUsers,
 } from "@/icons";
 
+// Helper function to create custom background styles
+const getCustomBackgroundSx = (bgColor?: string, hoverColor?: string) => {
+    if (!bgColor) return undefined;
+    
+    return {
+        '&:not([aria-pressed="true"])': {
+            backgroundColor: bgColor,
+            '&:hover': {
+                backgroundColor: hoverColor || bgColor.replace('0.1', '0.2'), // Auto darken if no hover color
+            }
+        }
+    };
+};
+
 interface FilterOption {
     id: string;
     icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
     label: string;
-    bgColor?: string;
+    bgColor?: string;  // CSS color or object with bg and hover
+    hoverColor?: string; // Optional hover color
     component?: React.ReactNode;
     onClick?: () => void;
     hasActiveFilter?: boolean;
@@ -33,70 +48,79 @@ export const InboxFilter = memo(function InboxFilter({
     activeFilter,
     onFilterChange,
 }: InboxFilterProps) {
-    const [hoveredFilter, setHoveredFilter] = useState<string | null>(null);
 
     const filterOptions: FilterOption[] = [
         {
             id: "all",
             icon: IconMessageCircle,
             label: "Tất cả tin nhắn",
-            bgColor: "bg-blue-500/10 hover:bg-blue-500/20",
+            bgColor: "rgba(59, 130, 246, 0.1)", // blue-500/10
+            hoverColor: "rgba(59, 130, 246, 0.2)", // blue-500/20
         },
         {
             id: "unread",
             icon: IconMail,
             label: "Chưa đọc",
-            bgColor: "bg-red-500/10 hover:bg-red-500/20",
+            bgColor: "rgba(239, 68, 68, 0.1)", // red-500/10
+            hoverColor: "rgba(239, 68, 68, 0.2)", // red-500/20
         },
         {
             id: "read",
             icon: IconCheckCircle,
             label: "Đã đọc",
-            bgColor: "bg-gray-500/10 hover:bg-gray-500/20",
+            bgColor: "rgba(107, 114, 128, 0.1)", // gray-500/10
+            hoverColor: "rgba(107, 114, 128, 0.2)", // gray-500/20
         },
         {
             id: "comments",
             icon: IconMessageCircle,
             label: "Bình luận",
-            bgColor: "bg-green-500/10 hover:bg-green-500/20",
+            bgColor: "rgba(34, 197, 94, 0.1)", // green-500/10
+            hoverColor: "rgba(34, 197, 94, 0.2)", // green-500/20
         },
         {
             id: "phone",
             icon: IconPhone,
             label: "Có số điện thoại",
-            bgColor: "bg-purple-500/10 hover:bg-purple-500/20",
+            bgColor: "rgba(168, 85, 247, 0.1)", // purple-500/10
+            hoverColor: "rgba(168, 85, 247, 0.2)", // purple-500/20
         },
         {
             id: "important",
             icon: IconStar,
             label: "Quan trọng",
-            bgColor: "bg-yellow-500/10 hover:bg-yellow-500/20",
+            bgColor: "rgba(234, 179, 8, 0.1)", // yellow-500/10
+            hoverColor: "rgba(234, 179, 8, 0.2)", // yellow-500/20
         },
         {
             id: "unanswered",
             icon: IconClock,
             label: "Chưa trả lời",
-            bgColor: "bg-orange-500/10 hover:bg-orange-500/20",
+            bgColor: "rgba(249, 115, 22, 0.1)", // orange-500/10
+            hoverColor: "rgba(249, 115, 22, 0.2)", // orange-500/20
         },
         {
             id: "timeRange",
             icon: IconCalendar,
             label: "Khoảng thời gian",
-            bgColor: "bg-teal-500/10 hover:bg-teal-500/20",
+            bgColor: "rgba(20, 184, 166, 0.1)", // teal-500/10
+            hoverColor: "rgba(20, 184, 166, 0.2)", // teal-500/20
             hasActiveFilter: false,
         },
         {
             id: "source",
             icon: IconGlobe,
             label: "Nguồn",
-            bgColor: "bg-cyan-500/10 hover:bg-cyan-500/20",
+            bgColor: "rgba(6, 182, 212, 0.1)", // cyan-500/10
+            hoverColor: "rgba(6, 182, 212, 0.2)", // cyan-500/20
             hasActiveFilter: false,
         },
         {
             id: "assignee",
             icon: IconUsers,
             label: "Người phân công",
-            bgColor: "bg-violet-500/10 hover:bg-violet-500/20",
+            bgColor: "rgba(139, 92, 246, 0.1)", // violet-500/10
+            hoverColor: "rgba(139, 92, 246, 0.2)", // violet-500/20
             hasActiveFilter: false,
         },
     ];
@@ -113,36 +137,16 @@ export const InboxFilter = memo(function InboxFilter({
             {filterOptions.map((option) => {
                 const IconComponent = option.icon;
                 const isActive = activeFilter === option.id;
-                const isHovered = hoveredFilter === option.id;
-
                 return (
-                    <div key={option.id} className="relative">
-                        <button
+                    <Tooltip key={option.id} title={option.label} placement="right" arrow>
+                        <IconButton
                             onClick={() => handleFilterClick(option.id, option.onClick)}
-                            onMouseEnter={() => setHoveredFilter(option.id)}
-                            onMouseLeave={() => setHoveredFilter(null)}
-                            className={clsx(
-                                "relative w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-200",
-                                "shadow-sm hover:shadow-md",
-                                isActive
-                                    ? "bg-primary text-primary-foreground shadow-lg scale-105"
-                                    : clsx(
-                                        option.bgColor,
-                                        "text-foreground/70 hover:text-foreground hover:scale-105"
-                                    )
-                            )}
+                            aria-pressed={isActive}
+                            sx={getCustomBackgroundSx(option.bgColor, option.hoverColor)}
                         >
                             <IconComponent className="w-6 h-6" />
-                        </button>
-                        {isHovered && (
-                            <div className="absolute left-12 top-1/2 transform -translate-y-1/2 z-50">
-                                <div className="bg-foreground text-background px-2 py-1 rounded text-xs whitespace-nowrap shadow-lg">
-                                    {option.label}
-                                    <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-foreground rotate-45"></div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
+                        </IconButton>
+                    </Tooltip>
                 );
             })}
         </div>

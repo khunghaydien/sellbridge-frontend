@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "../../../hooks/use-auth";
-import { Button, Avatar, Box, Typography } from "@mui/material";
+import { Avatar, Box, Typography } from "@mui/material";
 import { useTranslations } from "next-intl";
 
 export default function UserProfile() {
@@ -21,19 +21,8 @@ export default function UserProfile() {
   }
 
   return (
-    <Box className="flex items-center gap-4 p-4 border rounded-lg">
-      <Avatar src={user?.image || undefined} alt={user?.name || t("user")}>
-        {user?.name?.charAt(0)}
-      </Avatar>
-      <Box className="flex-1">
-        <Typography variant="h6">{user?.name}</Typography>
-        <Typography color="text.secondary">
-          {user?.email}
-        </Typography>
-      </Box>
-      <Button variant="outlined" onClick={logout}>
-        {t("sign_out")}
-      </Button>
-    </Box>
+    <Avatar src={user?.image || undefined} alt={user?.name || t("user")} className="cursor-pointer" onClick={logout}>
+      {user?.name?.charAt(0)}
+    </Avatar>
   );
 }
