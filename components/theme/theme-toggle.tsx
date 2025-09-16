@@ -3,7 +3,8 @@
 import * as React from "react"
 import { useTheme } from "next-themes"
 import { IconButton, Tooltip } from "@mui/material"
-import { Brightness4, Brightness7 } from "@mui/icons-material"
+import IconMoon from "@/icons/icon-moon"
+import IconSun from "@/icons/icon-sun"
 
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme()
@@ -15,7 +16,7 @@ export function ThemeToggle() {
   }, [])
 
   if (!mounted) {
-    return <IconButton size="large"><Brightness7 /></IconButton>
+    return <IconButton size="large"><IconMoon /></IconButton>
   }
 
   return (
@@ -25,7 +26,7 @@ export function ThemeToggle() {
         color="inherit"
         size="large"
       >
-        {theme === "light" ? <Brightness4 /> : <Brightness7 />}
+        {theme === "light" ? <IconMoon /> : <IconSun />}
       </IconButton>
     </Tooltip>
   )

@@ -1,2 +1,17 @@
 export { default as IconGoogle } from "./icon-google";
 export { default as IconFacebook } from "./icon-facebook";
+export { default as IconPhone } from "./icon-phone";
+export { default as IconStar } from "./icon-star";
+export { default as IconMoreVertical } from "./icon-more-vertical";
+export { default as IconSend } from "./icon-send";
+export { default as IconMessageCircle } from "./icon-message-circle";
+export { default as IconMail } from "./icon-mail";
+export { default as IconCheckCircle } from "./icon-check-circle";
+export { default as IconClock } from "./icon-clock";
+export { default as IconCalendar } from "./icon-calendar";
+export { default as IconGlobe } from "./icon-globe";
+export { default as IconUsers } from "./icon-users";
+export { default as IconMessageSquare } from "./icon-message-square";
+export { default as IconShoppingCart } from "./icon-shopping-cart";
+export { default as IconSearch } from "./icon-search";
+export { default as IconRing } from "./icon-ring";
