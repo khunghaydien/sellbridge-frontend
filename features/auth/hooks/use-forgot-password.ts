@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { useTranslations } from "next-intl";
-import { AuthService } from "../services/auth.service";
+import { AuthService } from "../services";
 
 export interface ForgotPasswordData {
   email: string;

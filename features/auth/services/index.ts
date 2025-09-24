@@ -1,3 +1,4 @@
 // Auth Services
-export { AuthService, authOptions } from './auth.service';
+export { AuthService } from './auth.service';
+export { authOptions } from './next-auth.service';
 

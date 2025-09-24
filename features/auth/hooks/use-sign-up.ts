@@ -7,7 +7,7 @@ import * as yup from "yup";
 import { useTranslations } from "next-intl";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { AuthService } from "../services/auth.service";
+import { AuthService } from "../services";
 
 export interface SignUpData {
   email: string;
