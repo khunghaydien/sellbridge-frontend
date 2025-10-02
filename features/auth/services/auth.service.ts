@@ -1,43 +1,85 @@
+import { publicApi } from "@/services";
+
 // Authentication service functions
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL as string;
 export class AuthService {
     static async signUp(userData: {
         email: string;
         password: string;
     }) {
         try {
-            const response = await fetch(`${BASE_URL}/auth/sign-up`, {
-                method: "POST",
-                body: JSON.stringify(userData),
-            });
-            return response.json();
+            const response = await publicApi.post("/auth/sign-up", userData);
+            return response.data;
         } catch (error: any) {
-            throw new Error(error.message || "Sign up failed");
+            throw new Error(error.message);
         }
     }
+
+    static async signIn(userData: {
+        email: string;
+        password: string;
+    }) {
+        try {
+            const response = await publicApi.post("/auth/sign-in", userData);
+            return response.data;
+        } catch (error: any) {
+            throw new Error(error.message);
+        }
+    }
+
+    static async googleSignIn() {
+        try {
+            const response = await publicApi.get("/auth/google/url");
+            return response.data;
+        } catch (error: any) {
+            throw new Error(error.message);
+        }
+    }
+
+    static async facebookSignIn() {
+        try {
+            const response = await publicApi.get("/auth/facebook/url");
+            return response.data;
+        } catch (error: any) {
+            throw new Error(error.message);
+        }
+    }
+
     static async forgotPassword(email: string) {
         try {
-            const response = await fetch(`${BASE_URL}/auth/forgot-password`, {
-                method: "POST",
-                body: JSON.stringify({ email }),
-            });
-            return response.json();
+            const response = await publicApi.post("/auth/forgot-password", { email });
+            return response.data;
         } catch (error: any) {
-            throw new Error(error.message || "Failed to send reset email");
+            throw new Error(error.message);
         }
     }
+
     static async changePassword(data: {
         currentPassword: string;
         newPassword: string;
     }) {
         try {
-            const response = await fetch(`${BASE_URL}/auth/change-password`, {
-                method: "POST",
-                body: JSON.stringify(data),
-            });
-            return response.json();
+            const response = await publicApi.post("/auth/change-password", data);
+            return response.data;
         } catch (error: any) {
-            throw new Error(error.message || "Failed to change password");
+            throw new Error(error.message);
+        }
+    }
+
+    static async signOut() {
+        try {
+            const response = await publicApi.post("/auth/sign-out");
+            return response.data;
+        } catch (error: any) {
+            throw new Error(error.message);
+        }
+    }
+
+    static async getMe() {
+        try {
+            const response = await publicApi.get("/auth/me");
+            return response.data;
+        } catch (error: any) {
+            throw new Error(error.message);
         }
     }
 }

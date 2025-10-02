@@ -1,11 +1,11 @@
 "use client";
 
 import { useAuth } from "../../../hooks/use-auth";
-import { Avatar, Box, Typography } from "@mui/material";
+import { Box,Typography } from "@mui/material";
 import { useTranslations } from "next-intl";
 
 export default function UserProfile() {
-  const { user, isAuthenticated, isLoading, logout } = useAuth();
+  const { user, isAuthenticated, isLoading, signOut } = useAuth();
   const t = useTranslations();
 
   if (isLoading) {
@@ -19,10 +19,7 @@ export default function UserProfile() {
   if (!isAuthenticated) {
     return null;
   }
-
   return (
-    <Avatar src={user?.image || undefined} alt={user?.name || t("user")} className="cursor-pointer" onClick={logout}>
-      {user?.name?.charAt(0)}
-    </Avatar>
+    <Typography onClick={signOut} className="cursor-pointer">{user?.name}</Typography>
   );
 }

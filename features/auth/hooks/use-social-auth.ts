@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { AuthService } from "../services";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
@@ -10,7 +10,7 @@ export type SocialProvider = "google" | "facebook";
 export function useSocialAuth() {
   const router = useRouter();
   const t = useTranslations();
-  const [isLoading, setIsLoading] = useState<{[key in SocialProvider]?: boolean}>({});
+  const [isLoading, setIsLoading] = useState<{ [key in SocialProvider]?: boolean }>({});
   const [error, setError] = useState<string | null>(null);
 
   const signInWithProvider = async (provider: SocialProvider) => {
@@ -18,19 +18,24 @@ export function useSocialAuth() {
       setIsLoading(prev => ({ ...prev, [provider]: true }));
       setError(null);
 
-      const result = await signIn(provider, {
-        redirect: false,
-        callbackUrl: "/",
-      });
-
-      if (result?.error) {
-        setError(`Failed to sign in with ${provider}`);
-      } else if (result?.ok) {
-        router.push("/");
+      let response:any;
+      if (provider === 'google') {
+        response = await AuthService.googleSignIn();
+      } else if (provider === 'facebook') {
+        response = await AuthService.facebookSignIn();
       }
-    } catch (error) {
-      setError(`An error occurred while signing in with ${provider}`);
-    } finally {
+      if (response && response.success && response.data) {
+        const authData = response.data as { authUrl: string };
+        if (authData.authUrl) {
+          window.location.href = authData.authUrl;
+        } else {
+          setError(`Failed to get ${provider} authentication URL`);
+        }
+      } else {
+        setError(`Failed to get ${provider} authentication URL`);
+      }
+    } catch (error: any) {
+      setError(error.message || `An error occurred while signing in with ${provider}`);
       setIsLoading(prev => ({ ...prev, [provider]: false }));
     }
   };

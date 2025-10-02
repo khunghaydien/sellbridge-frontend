@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useTranslations } from "next-intl";
-    import { Tabs, Tab, Box } from '@mui/material';
+import { Tabs, Tab, Box } from '@mui/material';
 import SignIn from './sign-in';
 import SignUp from './sign-up';
 import SocialAuth from './social-auth';
@@ -52,9 +52,9 @@ function Authentication() {
   return (
     <div className="space-y-6 w-full">
       <Box>
-        <Tabs 
-          value={value} 
-          onChange={handleChange} 
+        <Tabs
+          value={value}
+          onChange={handleChange}
           aria-label="authentication tabs"
           variant="fullWidth"
         >

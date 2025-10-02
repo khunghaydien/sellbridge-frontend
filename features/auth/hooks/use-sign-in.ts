@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { useTranslations } from "next-intl";
-import { signIn } from "next-auth/react";
+import { AuthService } from "../services";
 
 export interface SignInData {
   email: string;
@@ -39,19 +39,13 @@ export function useSignIn() {
   const onSubmit = async (data: SignInData) => {
     try {
       setError(null);
-      const result = await signIn("credentials", {
+      const response = await AuthService.signIn({
         email: data.email,
         password: data.password,
-        redirect: false,
       });
-
-      if (result?.error) {
-        setError(t("invalid_credentials"));
-      } else if (result?.ok) {
-        window.location.href = "/";
-      }
-    } catch (error) {
-      setError(t("sign_in_error"));
+      window.location.href = '/'
+    } catch (error: any) {
+      setError(error.message);
     }
   };
 

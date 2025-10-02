@@ -5,9 +5,8 @@ import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { useTranslations } from "next-intl";
-import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { AuthService } from "../services";
+import { useRouter } from "next/navigation";
 
 export interface SignUpData {
   email: string;
@@ -52,17 +51,14 @@ export function useSignUp() {
       });
 
       setSuccess(t("account_created_success"));
-
-      // Automatically sign in after successful registration
       setTimeout(async () => {
-        const result = await signIn("credentials", {
-          email: data.email,
-          password: data.password,
-          redirect: false,
-        });
-
-        if (result?.ok) {
-          router.push("/");
+        try {
+          const response = await AuthService.signIn({
+            email: data.email,
+            password: data.password,
+          });
+        } catch (error: any) {
+          setError(error.message || t("sign_in_error"));
         }
       }, 2000);
 

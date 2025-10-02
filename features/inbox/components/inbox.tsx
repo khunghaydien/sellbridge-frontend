@@ -13,7 +13,7 @@ export default function page() {
 
 
   return (
-    <div className="messages-page w-full max-w-[1400px] h-[calc(100vh-60px)] flex gap-4 p-4">
+    <div className="messages-page w-full max-w-[1400px] h-[calc(100vh-75px)] flex gap-4 p-4">
       {/* Column 1: Filter Menu */}
       <div className="w-16 flex-shrink-0">
         <InboxFilter
