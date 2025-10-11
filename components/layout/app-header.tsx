@@ -59,7 +59,7 @@ export default function AppHeader({
             className={clsx(headerVariants({ size, shadow, sticky }), className)}
         >
             <div className="flex items-center gap-6">
-                <Logo />
+                <h1 className="text-2xl font-bold">SELLBRIDGE</h1>
                 <NavigationTabs />
             </div>
 

@@ -31,29 +31,21 @@ export class AuthApiService {
 
     const url = `${this.baseUrl}${endpoint}`;
 
-    // Lấy access token từ cookie
+    // Lấy access token từ cookie (nếu có thể đọc được)
     const accessToken = getAccessToken();
     
-    if (!accessToken && !isRetry) {
-      const error: ApiError = {
-        message: 'No access token found',
-        status: 401,
-        code: 'NO_TOKEN',
-      };
-      throw error;
-    }
-
     try {
       const response = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
+          // Chỉ thêm Authorization header nếu có thể đọc được token
           ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
           ...headers,
         },
         body: body ? JSON.stringify(body) : undefined,
         cache,
-        credentials,
+        credentials, // HttpOnly cookies sẽ được gửi tự động
       });
 
       const data = await response.json();

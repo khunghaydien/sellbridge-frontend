@@ -1,7 +1,7 @@
-import { Inbox } from "@/features/inbox";
+import { PageList } from "@/features/page";
 
-export default function page() {
+export default function AccountPage() {
     return (
-        <Inbox />
+        <PageList />
     )
 }   

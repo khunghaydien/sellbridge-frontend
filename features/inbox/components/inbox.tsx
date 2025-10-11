@@ -3,13 +3,20 @@
 import { useState } from "react";
 import { InboxFilter } from "./inbox-filter";
 import { InboxList } from "./inbox-list";
-import { InboxDetail } from "./inbox-detail";
 import { CheckoutSection } from "./checkout-section";
+import { usePages } from "@/features/page/hooks";
+import InboxDetail from "./inbox-detail";
 
+interface InboxProps {
+  pageId?: string;
+}
 
-export default function page() {
+export default function Inbox({ pageId }: InboxProps) {
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<string>("all");
+  
+  const { pages } = usePages();
+  const currentPage = pages.find(p => p.id === pageId);
 
 
   return (
@@ -25,6 +32,7 @@ export default function page() {
       {/* Column 2: Message List */}
       <div className="w-80 flex-shrink-0">
         <InboxList
+          pageId={pageId}
           filter={activeFilter}
           selectedMessageId={selectedMessageId}
           onMessageSelect={setSelectedMessageId}
@@ -34,7 +42,9 @@ export default function page() {
       {/* Column 3: Message Detail */}
       <div className="flex-1 min-w-0">
         <InboxDetail
-          messageId={selectedMessageId}
+          conversationId={selectedMessageId}
+          pageAccessToken={currentPage?.access_token}
+          pageId={pageId}
         />
       </div>
 

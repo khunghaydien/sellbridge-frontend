@@ -36,6 +36,6 @@ export interface RefreshTokenResponse {
 
 // Cookie names
 export const COOKIE_NAMES = {
-  ACCESS_TOKEN: 'access_token',
-  REFRESH_TOKEN: 'refresh_token',
+  ACCESS_TOKEN: 'accessToken',
+  REFRESH_TOKEN: 'refreshToken',
 } as const;

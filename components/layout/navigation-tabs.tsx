@@ -5,7 +5,6 @@ import { clsx } from "clsx"
 
 const navigationItems = [
     { href: "/", label: "Home" },
-    { href: "/inbox", label: "Inbox" },
 ]
 
 export default function NavigationTabs() {
