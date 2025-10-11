@@ -3,7 +3,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { getMessages, getLocale } from "next-intl/server";
 import { NextIntlClientProvider } from "next-intl";
-import { ThemeProvider } from "@/providers/theme-provider";
+import { ThemeProvider, AuthProvider, ReduxProvider, FacebookWebhookProvider } from "@/providers";
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
   variable: "--font-geist-sans",
@@ -32,16 +32,22 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <NextIntlClientProvider messages={messages} locale={locale}>
-            {children}
-          </NextIntlClientProvider>
-        </ThemeProvider>
+        <ReduxProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <NextIntlClientProvider messages={messages} locale={locale}>
+              <AuthProvider>
+                <FacebookWebhookProvider>
+                  {children}
+                </FacebookWebhookProvider>
+              </AuthProvider>
+            </NextIntlClientProvider>
+          </ThemeProvider>
+        </ReduxProvider>
       </body>
     </html>
   );

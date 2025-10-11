@@ -1,310 +1,257 @@
 "use client";
 
-import { memo, useState, useCallback, useRef, useEffect } from "react";
+import { memo, useState, useRef, useEffect } from "react";
 import clsx from "clsx";
-import { IconPhone, IconStar, IconMoreVertical, IconSend } from "@/icons";
-
-interface ChatMessage {
-  id: string;
-  content: string;
-  timestamp: string;
-  isOwn: boolean;
-  sender: string;
-  order: number; // Thêm order để sắp xếp đúng thứ tự
-}
+import { IconSend } from "@/icons";
+import { useMessages } from "../hooks";
+import { useConversations } from "../hooks";
+import { CircularProgress, Alert } from "@mui/material";
 
 interface InboxDetailProps {
-  messageId: string | null;
+  conversationId: string | null;
+  pageAccessToken?: string;
+  pageId?: string; // Add pageId to identify page messages
 }
 
-// Mock data generator for chat messages
-const generateChatMessages = (startIndex: number, count: number, isOwn: boolean = false): ChatMessage[] => {
-  const messages: ChatMessage[] = [];
-  const sender = isOwn ? "Bạn" : "Nguyễn Văn A";
+export const InboxDetail = memo(function InboxDetail({ conversationId, pageAccessToken, pageId }: InboxDetailProps) {
+  const [inputValue, setInputValue] = useState("");
+  
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
-  for (let i = 0; i < count; i++) {
-    const index = startIndex + i;
-    const hour = 23 - (index % 24);
-    const minute = 59 - (index % 60);
+  // Redux hooks
+  const {
+    messages,
+    isLoading,
+    error,
+    isSending,
+    sendError,
+    loadMessages,
+    sendNewMessage,
+    clearMessagesError
+  } = useMessages();
 
-    messages.push({
-      id: `chat-${index}`,
-      content: `Tin nhắn thứ ${index + 1} trong cuộc trò chuyện này. ${isOwn ? 'Đây là tin nhắn của bạn.' : 'Đây là tin nhắn từ khách hàng.'}`,
-      timestamp: `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`,
-      isOwn: isOwn,
-      sender: sender,
-      order: index, // Order thấp = tin nhắn cũ
-    });
-  }
+  const { conversations } = useConversations();
+  
+  // Get current conversation to extract recipient PSID
+  const currentConversation = conversations.find(c => c.id === conversationId);
+  const recipientId = currentConversation?.participants?.data?.[0]?.id;
 
-  return messages;
-};
-
-// Initial chat messages - sắp xếp theo thứ tự thời gian
-const initialChatMessages = [
-  ...generateChatMessages(0, 5, false), // Messages from customer (order 0-4)
-  ...generateChatMessages(5, 3, true),  // Your messages (order 5-7)
-  ...generateChatMessages(8, 4, false), // More customer messages (order 8-11)
-  ...generateChatMessages(12, 2, true), // Your replies (order 12-13)
-].sort((a, b) => a.order - b.order); // Sắp xếp theo order tăng dần
-
-export const InboxDetail = memo(function InboxDetail({ messageId }: InboxDetailProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>(initialChatMessages);
-  const [newMessage, setNewMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [page, setPage] = useState(1);
-
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const loadingRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const scrollPositionRef = useRef<number>(0);
-  const isLoadingOlderRef = useRef<boolean>(false);
-
-  // Mock API call to load older messages
-  const loadOlderMessages = useCallback(async () => {
-    if (isLoading || !hasMore || !messageId || isLoadingOlderRef.current) return;
-
-    isLoadingOlderRef.current = true;
-    setIsLoading(true);
-
-    // Save current scroll position
-    if (scrollContainerRef.current) {
-      scrollPositionRef.current = scrollContainerRef.current.scrollTop;
-    }
-
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-
-    // Tạo tin nhắn cũ với order thấp hơn tin nhắn hiện tại
-    const currentMinOrder = Math.min(...messages.map(m => m.order));
-    const olderMessages = [
-      ...generateChatMessages(currentMinOrder - 6, 3, false), // Tin nhắn cũ hơn
-      ...generateChatMessages(currentMinOrder - 3, 2, true),  // Tin nhắn cũ hơn
-      ...generateChatMessages(currentMinOrder - 1, 3, false), // Tin nhắn cũ hơn
-    ];
-
-    // Simulate end of data after 50 messages
-    if (messages.length + olderMessages.length >= 50) {
-      setHasMore(false);
-    }
-
-    // Thêm tin nhắn cũ vào đầu và sắp xếp lại
-    const allMessages = [...olderMessages, ...messages].sort((a, b) => a.order - b.order);
-    setMessages(allMessages);
-    setPage(prev => prev + 1);
-    setIsLoading(false);
-    isLoadingOlderRef.current = false;
-  }, [isLoading, hasMore, messages, messageId]);
-
-  // Intersection Observer for infinite scroll (top)
+  // Debug log
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const target = entries[0];
-        if (target.isIntersecting && hasMore && !isLoading && messageId && !isLoadingOlderRef.current) {
-          loadOlderMessages();
-        }
-      },
-      {
-        root: scrollContainerRef.current,
-        rootMargin: '50px',
-        threshold: 0.1,
+    if (conversationId) {
+      console.log('=== Message Detail Debug ===');
+      console.log('Page ID:', pageId);
+      console.log('Current conversation:', currentConversation);
+      console.log('Recipient PSID:', recipientId);
+      console.log('Messages count:', messages.length);
+      if (messages.length > 0) {
+        console.log('Sample message from:', messages[0]?.from);
+        console.log('Is own message?', messages[0]?.from.id === pageId);
       }
-    );
-
-    if (loadingRef.current) {
-      observer.observe(loadingRef.current);
     }
+  }, [conversationId, recipientId, messages, pageId]);
 
-    return () => observer.disconnect();
-  }, [loadOlderMessages, hasMore, isLoading, messageId]);
-
-  // Restore scroll position after loading older messages
+  // Fetch messages when conversationId changes
   useEffect(() => {
-    if (scrollContainerRef.current && scrollPositionRef.current > 0 && !isLoading) {
-      const container = scrollContainerRef.current;
-      const newScrollHeight = container.scrollHeight;
-      const oldScrollHeight = newScrollHeight - (messages.length * 100); // Approximate message height
-
-      // Calculate new scroll position
-      const scrollDiff = newScrollHeight - oldScrollHeight;
-      container.scrollTop = scrollPositionRef.current + scrollDiff;
-
-      // Reset scroll position ref
-      scrollPositionRef.current = 0;
+    if (conversationId && pageAccessToken) {
+      console.log('Fetching messages for conversation:', conversationId);
+      loadMessages({
+        conversationId,
+        pageAccessToken,
+        limit: 50,
+      });
     }
-  }, [messages.length, isLoading]);
+  }, [conversationId, pageAccessToken]);
 
-  // Auto scroll to bottom when sending new message
-  const handleSendMessage = () => {
-    if (!newMessage.trim() || !messageId) return;
+  // Scroll to bottom when messages load
+  useEffect(() => {
+    if (messages.length > 0 && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]);
 
-    // Tạo order mới cao hơn tin nhắn hiện tại
-    const currentMaxOrder = Math.max(...messages.map(m => m.order));
-
-    const newMsg: ChatMessage = {
-      id: `new-${Date.now()}`,
-      content: newMessage,
-      timestamp: new Date().toLocaleTimeString('vi-VN', {
-        hour: '2-digit',
-        minute: '2-digit'
-      }),
-      isOwn: true,
-      sender: "Bạn",
-      order: currentMaxOrder + 1, // Order cao nhất = tin nhắn mới nhất
-    };
-
-    setMessages(prev => [...prev, newMsg]);
-    setNewMessage("");
-
-    // Auto scroll to bottom after sending
-    setTimeout(() => {
-      if (scrollContainerRef.current) {
-        scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
-      }
-    }, 100);
-
-    // Focus back to input
-    if (inputRef.current) {
-      inputRef.current.focus();
+  const handleSend = async () => {
+    if (!inputValue.trim() || !conversationId || !pageAccessToken || !pageId || !recipientId) {
+      console.warn('Missing required params:', { 
+        hasInput: !!inputValue.trim(), 
+        hasConversationId: !!conversationId, 
+        hasPageAccessToken: !!pageAccessToken,
+        hasPageId: !!pageId,
+        hasRecipientId: !!recipientId
+      });
+      return;
+    }
+    
+    const messageText = inputValue.trim();
+    setInputValue(""); // Clear input immediately
+    
+    console.log('Sending message with params:', { pageId, recipientId, message: messageText });
+    
+    try {
+      await sendNewMessage({
+        pageId: pageId!,
+        recipientId: recipientId!,
+        message: messageText,
+        pageAccessToken: pageAccessToken,
+      });
+      
+      // Reload messages after sending
+      setTimeout(() => {
+        loadMessages({
+          conversationId,
+          pageAccessToken,
+          limit: 50,
+        });
+      }, 500);
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      // Restore message if failed
+      setInputValue(messageText);
     }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSendMessage();
+      handleSend();
     }
   };
 
-  if (!messageId) {
+  // No conversation selected
+  if (!conversationId) {
     return (
-      <div className="h-full flex items-center justify-center bg-background">
-        <div className="text-center text-muted-foreground">
-          <p className="text-lg font-medium mb-2">Chọn một tin nhắn</p>
-          <p className="text-sm">Để bắt đầu trò chuyện</p>
+      <div className="h-full flex flex-col bg-gradient-to-b from-background to-muted rounded-xl">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-muted-foreground">Select a conversation to view messages</p>
+          </div>
         </div>
       </div>
     );
   }
 
+  // Loading state
+  if (isLoading && messages.length === 0) {
+    return (
+      <div className="h-full flex flex-col bg-gradient-to-b from-background to-muted rounded-xl">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-2">
+            <CircularProgress />
+            <p className="text-sm text-muted-foreground">Loading messages...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="h-full flex flex-col bg-gradient-to-b from-background to-muted rounded-xl p-4">
+        <Alert severity="error" onClose={clearMessagesError}>
+          {error}
+        </Alert>
+      </div>
+    );
+  }
+
   return (
-    <div className="h-full flex flex-col px-4 bg-gradient-to-b from-background to-muted rounded-xl">
+    <div className="h-full flex flex-col bg-gradient-to-b from-background to-muted rounded-xl">
       {/* Header */}
-      <div className="p-4 bg-muted rounded-lg mb-4">
+      <div className="px-4 py-3 border-b border-border">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
-              N
-            </div>
-            <div>
-              <h3 className="font-semibold text-sm">Nguyễn Văn A</h3>
-              <p className="text-xs text-muted-foreground">Đang hoạt động</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button className="p-2 rounded-lg hover:bg-muted/50 transition-colors">
-              <IconPhone className="w-4 h-4" />
-            </button>
-            <button className="p-2 rounded-lg hover:bg-muted/50 transition-colors">
-              <IconStar className="w-4 h-4" />
-            </button>
-            <button className="p-2 rounded-lg hover:bg-muted/50 transition-colors">
-              <IconMoreVertical className="w-4 h-4" />
-            </button>
+          <div>
+            <h2 className="font-semibold text-foreground">
+              {messages[0]?.from?.name || 'Conversation'}
+            </h2>
+            <p className="text-xs text-muted-foreground">{messages.length} messages</p>
           </div>
         </div>
       </div>
 
-      {/* Chat Messages with Infinite Scroll */}
+      {/* Messages */}
       <div
-        ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto scroll-smooth scrollbar-messenger p-4 space-y-4"
+        ref={messagesContainerRef}
+        className="flex-1 overflow-y-auto px-4 py-4 space-y-4 scrollbar-messenger"
       >
-        {/* Loading indicator for older messages */}
-        <div
-          ref={loadingRef}
-          className="flex items-center justify-center py-2"
-        >
-          {isLoading ? (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <div className="w-4 h-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-              <span className="text-sm">Đang tải tin nhắn cũ...</span>
-            </div>
-          ) : hasMore ? (
-            <div className="text-xs text-muted-foreground">
-              Cuộn lên để xem tin nhắn cũ
-            </div>
-          ) : (
-            <div className="text-xs text-muted-foreground">
-              Đã tải hết tin nhắn
-            </div>
-          )}
-        </div>
-
-        {/* Messages - đã được sắp xếp theo order */}
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={clsx(
-              "flex gap-3",
-              message.isOwn ? "justify-end" : "justify-start"
-            )}
-          >
-            {!message.isOwn && (
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-semibold flex-shrink-0">
-                {message.sender.charAt(0)}
+        {/* Reverse messages array so newest messages appear at the bottom */}
+        {[...messages].reverse().map((msg) => {
+          // Check if message is from the page (compare sender ID with page ID)
+          const isOwnMessage = msg.from.id === pageId;
+          
+          return (
+            <div
+              key={msg.id}
+              className={clsx(
+                "flex",
+                isOwnMessage ? "justify-end" : "justify-start"
+              )}
+            >
+              <div
+                className={clsx(
+                  "max-w-[70%] rounded-2xl px-4 py-2",
+                  isOwnMessage
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-foreground"
+                )}
+              >
+                {/* Show sender name if not own message */}
+                {!isOwnMessage && (
+                  <p className="text-xs font-semibold mb-1 text-foreground/80">
+                    {msg.from.name}
+                  </p>
+                )}
+                <p className="text-sm whitespace-pre-wrap break-words">
+                  {msg.message || '[No text]'}
+                </p>
+                <p className={clsx(
+                  "text-xs mt-1",
+                  isOwnMessage ? "text-primary-foreground/70" : "text-muted-foreground"
+                )}>
+                  {new Date(msg.created_time).toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </p>
               </div>
-            )}
-
-            <div className={clsx(
-              "max-w-[70%] rounded-lg px-3 py-2",
-              message.isOwn
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-foreground"
-            )}>
-              <p className="text-sm">{message.content}</p>
-              <p className={clsx(
-                "text-xs mt-1",
-                message.isOwn ? "text-primary-foreground/70" : "text-muted-foreground"
-              )}>
-                {message.timestamp}
-              </p>
             </div>
-
-            {message.isOwn && (
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-semibold flex-shrink-0">
-                B
-              </div>
-            )}
-          </div>
-        ))}
+          );
+        })}
+        <div ref={messagesEndRef} />
       </div>
+
+      {/* Send Error */}
+      {sendError && (
+        <div className="px-4 py-2">
+          <Alert severity="error" onClose={clearMessagesError}>
+            {sendError}
+          </Alert>
+        </div>
+      )}
 
       {/* Input */}
-      <div className="my-4">
+      <div className="px-4 py-3 border-t border-border">
         <div className="flex items-center gap-2">
           <input
-            ref={inputRef}
             type="text"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
+            placeholder="Type a message..."
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Nhập tin nhắn..."
-            className="flex-1 px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-background"
+            disabled={isSending}
+            className="flex-1 px-4 py-2 text-sm border border-border rounded-full focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-background disabled:opacity-50 disabled:cursor-not-allowed"
           />
           <button
-            onClick={handleSendMessage}
-            disabled={!newMessage.trim()}
-            className={clsx(
-              "w-[38px] h-[38px] flex items-center justify-center rounded-lg transition-colors",
-              newMessage.trim()
-                ? "bg-primary text-primary-foreground hover:bg-primary"
-                : "bg-background  text-muted-foreground cursor-not-allowed"
-            )}
+            onClick={handleSend}
+            disabled={!inputValue.trim() || isSending}
+            className="p-2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
           >
-            <IconSend className="w-4 h-4" />
+            {isSending ? (
+              <CircularProgress size={20} sx={{ color: 'inherit' }} />
+            ) : (
+              <IconSend className="w-5 h-5" />
+            )}
           </button>
         </div>
       </div>
@@ -312,4 +259,5 @@ export const InboxDetail = memo(function InboxDetail({ messageId }: InboxDetailP
   );
 });
 
-export default InboxDetail; 
+export default InboxDetail;
+

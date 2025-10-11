@@ -3,6 +3,9 @@
 import { memo, useState, useMemo, useCallback, useRef, useEffect } from "react";
 import clsx from "clsx";
 import { IconSearch } from "@/icons";
+import { useConversations } from "../hooks";
+import { usePages } from "@/features/page/hooks";
+import { CircularProgress, Alert } from "@mui/material";
 
 interface Message {
   id: string;
@@ -15,101 +18,108 @@ interface Message {
 }
 
 interface InboxListProps {
+  pageId?: string;
   filter: string;
   selectedMessageId: string | null;
   onMessageSelect: (messageId: string) => void;
 }
 
-// Mock data generator
-const generateMockMessages = (startIndex: number, count: number): Message[] => {
-  const names = [
-    "Nguyễn Văn A", "Trần Thị B", "Lê Văn C", "Phạm Thị D", "Hoàng Văn E",
-    "Vũ Thị F", "Đặng Văn G", "Bùi Thị H", "Ngô Văn I", "Dương Thị K",
-    "Lý Văn L", "Hồ Thị M", "Tô Văn N", "Đỗ Thị O", "Võ Văn P"
-  ];
-
-  const messages: Message[] = [];
-
-  for (let i = 0; i < count; i++) {
-    const index = startIndex + i;
-    const nameIndex = index % names.length;
-    const hour = 23 - (index % 24);
-    const minute = 59 - (index % 60);
-
-    messages.push({
-      id: `msg-${index}`,
-      sender: names[nameIndex],
-      preview: `Tin nhắn thứ ${index + 1} từ ${names[nameIndex]}...`,
-      time: `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`,
-      isUnread: index % 3 === 0,
-      hasPhone: index % 2 === 0,
-      isImportant: index % 5 === 0,
-    });
-  }
-
-  return messages;
-};
-
-// Initial messages
-const initialMessages = generateMockMessages(0, 20);
-
 export const InboxList = memo(function InboxList({
+  pageId,
   filter,
   selectedMessageId,
   onMessageSelect,
 }: InboxListProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
-  const [isLoading, setIsLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [page, setPage] = useState(1);
+  const [messages, setMessages] = useState<Message[]>([]);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const loadingRef = useRef<HTMLDivElement>(null);
 
-  // Mock API call to load more messages
-  const loadMoreMessages = useCallback(async () => {
-    if (isLoading || !hasMore) return;
+  // Redux hooks
+  const { 
+    conversations, 
+    paging,
+    isLoading: conversationsLoading, 
+    error: conversationsError,
+    loadConversations,
+    selectConversation 
+  } = useConversations();
+  
+  const { pages } = usePages();
 
-    setIsLoading(true);
-
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    const newMessages = generateMockMessages(messages.length, 10);
-
-    // Simulate end of data after 100 messages
-    if (messages.length + newMessages.length >= 100) {
-      setHasMore(false);
-    }
-
-    setMessages(prev => [...prev, ...newMessages]);
-    setPage(prev => prev + 1);
-    setIsLoading(false);
-  }, [isLoading, hasMore, messages.length]);
-
-  // Intersection Observer for infinite scroll
+  // Debug log on mount
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const target = entries[0];
-        if (target.isIntersecting && hasMore && !isLoading) {
-          loadMoreMessages();
-        }
-      },
-      {
-        root: scrollContainerRef.current,
-        rootMargin: '100px',
-        threshold: 0.1,
+    console.log('InboxList mounted with pageId:', pageId);
+    console.log('Pages available:', pages.length);
+  }, []);
+
+  // Fetch conversations when pageId is available
+  useEffect(() => {
+    console.log('=== Fetch Conversations Effect Triggered ===');
+    console.log('pageId:', pageId);
+    console.log('pages.length:', pages.length);
+    console.log('pages:', pages.map(p => ({ id: p.id, name: p.name })));
+    
+    if (pageId && pages.length > 0) {
+      // Find the page from the pages list
+      const currentPage = pages.find(p => p.id === pageId);
+      
+      console.log('currentPage found:', currentPage ? 'YES' : 'NO');
+      
+      if (currentPage) {
+        console.log('✅ Fetching conversations for page:', pageId);
+        console.log('Page name:', currentPage.name);
+        console.log('Page access token:', currentPage.access_token.substring(0, 20) + '...');
+        
+        loadConversations({
+          pageId: pageId,
+          pageAccessToken: currentPage.access_token,
+          limit: 25,
+        });
+      } else {
+        console.log('❌ Page not found in pages list:', pageId);
+        console.log('Available page IDs:', pages.map(p => p.id));
       }
-    );
-
-    if (loadingRef.current) {
-      observer.observe(loadingRef.current);
+    } else {
+      console.log('❌ Missing pageId or pages not loaded yet');
+      console.log('- pageId:', pageId);
+      console.log('- pages.length:', pages.length);
     }
+  }, [pageId, pages]);
 
-    return () => observer.disconnect();
-  }, [loadMoreMessages, hasMore, isLoading]);
+  // Map conversations to messages format
+  useEffect(() => {
+    if (conversations && conversations.length > 0) {
+      const mappedMessages: Message[] = conversations.map((conv) => {
+        // Get the first participant (customer)
+        const firstParticipant = conv.participants?.data?.[0];
+        const senderName = firstParticipant?.name || 'Unknown User';
+        
+        // Format time
+        const timeString = conv.updated_time 
+          ? new Date(conv.updated_time).toLocaleTimeString('en-US', { 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            })
+          : '';
+        
+        return {
+          id: conv.id,
+          sender: senderName,
+          preview: conv.snippet || 'No message preview',
+          time: timeString,
+          isUnread: conv.unread_count > 0,
+          hasPhone: firstParticipant?.email?.includes('@') === false, // Has phone if no email format
+          isImportant: conv.unread_count > 5, // Important if many unread
+        };
+      });
+      
+      console.log('Mapped messages:', mappedMessages);
+      setMessages(mappedMessages);
+    } else if (!conversationsLoading && conversations.length === 0) {
+      setMessages([]);
+    }
+  }, [conversations, conversationsLoading]);
 
   const filteredMessages = useMemo(() => {
     let filtered = messages;
@@ -166,11 +176,42 @@ export const InboxList = memo(function InboxList({
         )}
       </div>
 
+      {/* Loading State */}
+      {conversationsLoading && !messages.length && (
+        <div className="flex flex-col items-center justify-center py-8 gap-2">
+          <CircularProgress size={32} />
+          <p className="text-sm text-muted-foreground">Loading conversations...</p>
+        </div>
+      )}
+
+      {/* Error State */}
+      {conversationsError && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {conversationsError}
+        </Alert>
+      )}
+
+      {/* Empty State */}
+      {!conversationsLoading && !conversationsError && pageId && messages.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-8 text-center">
+          <p className="text-sm text-muted-foreground">No conversations found</p>
+          <p className="text-xs text-muted-foreground mt-1">for this page</p>
+        </div>
+      )}
+
+      {/* No Page Selected State */}
+      {!pageId && (
+        <div className="flex flex-col items-center justify-center py-8 text-center">
+          <p className="text-sm text-muted-foreground">Select a page to view conversations</p>
+        </div>
+      )}
+
       {/* Message List with Infinite Scroll */}
-      <div
-        ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto scroll-smooth scrollbar-messenger"
-      >
+      {messages.length > 0 && (
+        <div
+          ref={scrollContainerRef}
+          className="flex-1 overflow-y-auto scroll-smooth scrollbar-messenger"
+        >
         {filteredMessages.length === 0 ? (
           <div className="flex items-center justify-center h-full text-muted-foreground">
             <p className="text-sm">Không tìm thấy tin nhắn</p>
@@ -219,29 +260,18 @@ export const InboxList = memo(function InboxList({
               </div>
             ))}
 
-            {/* Loading indicator */}
-            <div
-              ref={loadingRef}
-              className="p-4 flex items-center justify-center"
-            >
-              {isLoading ? (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <div className="w-4 h-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-                  <span className="text-sm">Đang tải thêm tin nhắn...</span>
-                </div>
-              ) : hasMore ? (
+            {/* Pagination info */}
+            {paging && (paging.cursors?.after || paging.cursors?.before) && (
+              <div className="p-4 flex items-center justify-center">
                 <div className="text-xs text-muted-foreground">
-                  Cuộn xuống để tải thêm
+                  {filteredMessages.length} conversations loaded
                 </div>
-              ) : (
-                <div className="text-xs text-muted-foreground">
-                  Đã tải hết tin nhắn
-                </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         )}
-      </div>
+        </div>
+      )}
     </div>
   );
 });
