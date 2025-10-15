@@ -1,11 +1,12 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { ConversationService, GetConversationsParams, GetMultiplePageConversationsParams } from '@/features/inbox/services';
+import { RootState } from '../index';
 
 // Define types
 export interface Participant {
   name: string;
-  email: string;
   id: string;
+  picture?: string | null;
 }
 
 export interface Conversation {
@@ -36,10 +37,9 @@ export interface ConversationPaging {
 interface ConversationState {
   conversations: Conversation[];
   paging: ConversationPaging | null;
-  currentPageId: string | null;
-  currentPageAccessToken: string | null;
   currentPageIds: string[]; // Added for multi-page support
   currentPageAccessTokens: Record<string, string>; // Added for multi-page support
+  conversationPageMapping: Record<string, string>; // Maps conversationId to pageId
   isLoading: boolean;
   error: string | null;
   selectedConversationId: string | null;
@@ -49,10 +49,9 @@ interface ConversationState {
 const initialState: ConversationState = {
   conversations: [],
   paging: null,
-  currentPageId: null,
-  currentPageAccessToken: null,
   currentPageIds: [],
   currentPageAccessTokens: {},
+  conversationPageMapping: {}, // Maps conversationId to pageId
   isLoading: false,
   error: null,
   selectedConversationId: null,
@@ -104,6 +103,32 @@ const conversationSlice = createSlice({
       state.paging = null;
       state.error = null;
       state.selectedConversationId = null;
+      state.conversationPageMapping = {};
+    },
+    // Add websocket conversation with page mapping
+    addWebsocketConversation: (state, action: PayloadAction<{ conversation: Conversation; pageId: string }>) => {
+      const { conversation, pageId } = action.payload;
+      
+      // Update conversation page mapping
+      state.conversationPageMapping[conversation.id] = pageId;
+      
+      // Check if conversation already exists
+      const existingIndex = state.conversations.findIndex(conv => conv.id === conversation.id);
+      
+      if (existingIndex >= 0) {
+        // Update existing conversation
+        state.conversations[existingIndex] = {
+          ...state.conversations[existingIndex],
+          ...conversation,
+          pageId: pageId,
+        };
+      } else {
+        // Add new conversation
+        state.conversations.push({
+          ...conversation,
+          pageId: pageId,
+        });
+      }
     },
     clearConversationError: (state) => {
       state.error = null;
@@ -119,11 +144,7 @@ const conversationSlice = createSlice({
       // Fetch conversations - fulfilled
       .addCase(fetchConversations.fulfilled, (state, action: PayloadAction<any>) => {
         state.isLoading = false;
-        const { response, params } = action.payload;
-        
-        // Store current page info
-        state.currentPageId = params.pageId;
-        state.currentPageAccessToken = params.pageAccessToken;
+        const { response } = action.payload;
         
         // Handle nested data structure: response.data.data
         if (response.data && Array.isArray(response.data.data)) {
@@ -156,14 +177,26 @@ const conversationSlice = createSlice({
         state.currentPageAccessTokens = params.pageAccessTokens;
         
         // Handle nested data structure: response.data.data
+        let conversations = [];
         if (response.data && Array.isArray(response.data.data)) {
-          state.conversations = response.data.data;
+          conversations = response.data.data;
           state.paging = response.data.paging || null;
         } else if (Array.isArray(response.data)) {
-          state.conversations = response.data;
+          conversations = response.data;
         } else if (Array.isArray(response)) {
-          state.conversations = response;
+          conversations = response;
         }
+        
+        // Create conversation to page mapping
+        const conversationPageMapping: Record<string, string> = {};
+        conversations.forEach((conv: Conversation) => {
+          if (conv.pageId) {
+            conversationPageMapping[conv.id] = conv.pageId;
+          }
+        });
+        
+        state.conversations = conversations;
+        state.conversationPageMapping = conversationPageMapping;
         state.error = null;
       })
       // Fetch multiple page conversations - rejected
@@ -175,7 +208,8 @@ const conversationSlice = createSlice({
 });
 
 // Export actions
-export const { setSelectedConversation, clearConversations, clearConversationError } = conversationSlice.actions;
+export const { setSelectedConversation, clearConversations, clearConversationError, addWebsocketConversation } = conversationSlice.actions;
+
 
 // Export reducer
 export default conversationSlice.reducer;

@@ -10,6 +10,7 @@ import { CircularProgress, Alert } from "@mui/material";
 interface Message {
   id: string;
   sender: string;
+  senderPicture?: string | null;
   preview: string;
   time: string;
   isUnread: boolean;
@@ -44,7 +45,8 @@ export const InboxList = memo(function InboxList({
     isLoading: conversationsLoading, 
     error: conversationsError,
     loadMultiplePageConversations,
-    selectConversation 
+    selectConversation,
+    addWebsocketConversationToStore
   } = useConversations();
   
   const { pages } = usePages();
@@ -75,42 +77,29 @@ export const InboxList = memo(function InboxList({
     }
   }, [pageIds, pages, loadMultiplePageConversations]);
 
-  // Map conversations to messages format (merge API and websocket conversations)
+  // Process websocket conversations and add to Redux store
   useEffect(() => {
-    // Merge API conversations with websocket conversations
-    const allConversations = [...conversations];
-    
-    // Add websocket conversations that don't already exist in API conversations
     websocketConversations.forEach(wsConv => {
-      const exists = allConversations.find(conv => conv.id === wsConv.id);
-      if (!exists) {
-        allConversations.push(wsConv);
-      } else {
-        // Update existing conversation with websocket data
-        const index = allConversations.findIndex(conv => conv.id === wsConv.id);
-        if (index >= 0) {
-          allConversations[index] = {
-            ...allConversations[index],
-            snippet: wsConv.snippet, // Update with latest message
-            updated_time: wsConv.updated_time, // Update timestamp
-            unread_count: allConversations[index].unread_count + 1, // Increment unread
-          };
-        }
-      }
+      const pageId = wsConv.pageId || wsConv.id.split('_')[0]; // Extract pageId from conversation ID
+      addWebsocketConversationToStore(wsConv, pageId);
     });
+  }, [websocketConversations, addWebsocketConversationToStore]);
 
-    // Sort by updated_time (newest first)
-    allConversations.sort((a, b) => {
-      const timeA = new Date(a.updated_time || 0).getTime();
-      const timeB = new Date(b.updated_time || 0).getTime();
-      return timeB - timeA;
-    });
+  // Map conversations to messages format
+  useEffect(() => {
+    if (conversations.length > 0) {
+      // Sort by updated_time (newest first)
+      const sortedConversations = [...conversations].sort((a, b) => {
+        const timeA = new Date(a.updated_time || 0).getTime();
+        const timeB = new Date(b.updated_time || 0).getTime();
+        return timeB - timeA;
+      });
 
-    if (allConversations.length > 0) {
-      const mappedMessages: Message[] = allConversations.map((conv) => {
+      const mappedMessages: Message[] = sortedConversations.map((conv) => {
         // Get the first participant (customer)
         const firstParticipant = conv.participants?.data?.[0];
         const senderName = firstParticipant?.name || 'Unknown User';
+        const senderPicture = firstParticipant?.picture || null;
         
         // Format time
         const timeString = conv.updated_time 
@@ -123,19 +112,20 @@ export const InboxList = memo(function InboxList({
         return {
           id: conv.id,
           sender: senderName,
+          senderPicture: senderPicture,
           preview: conv.snippet || 'No message preview',
           time: timeString,
           isUnread: conv.unread_count > 0,
-          hasPhone: firstParticipant?.email?.includes('@') === false, // Has phone if no email format
+          hasPhone: false, // No longer checking email format
           isImportant: conv.unread_count > 5, // Important if many unread
         };
       });
       
       setMessages(mappedMessages);
-    } else if (!conversationsLoading && conversations.length === 0 && websocketConversations.length === 0) {
+    } else if (!conversationsLoading && conversations.length === 0) {
       setMessages([]);
     }
-  }, [conversations, conversationsLoading, websocketConversations]);
+  }, [conversations, conversationsLoading]);
 
   const filteredMessages = useMemo(() => {
     let filtered = messages;
@@ -244,12 +234,21 @@ export const InboxList = memo(function InboxList({
                 )}
               >
                 <div className="flex items-start justify-between mb-2">
-                  <h3 className={clsx(
-                    "font-medium text-sm truncate",
-                    message.isUnread ? "text-foreground font-semibold" : "text-foreground"
-                  )}>
-                    {message.sender}
-                  </h3>
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    {message.senderPicture && (
+                      <img 
+                        src={message.senderPicture} 
+                        alt={message.sender}
+                        className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                      />
+                    )}
+                    <h3 className={clsx(
+                      "font-medium text-sm truncate",
+                      message.isUnread ? "text-foreground font-semibold" : "text-foreground"
+                    )}>
+                      {message.sender}
+                    </h3>
+                  </div>
                   <span className="text-xs text-muted-foreground flex-shrink-0 ml-2">
                     {message.time}
                   </span>

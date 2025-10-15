@@ -7,13 +7,26 @@ import { useMessages } from "../hooks";
 import { useConversations } from "../hooks";
 import { CircularProgress, Alert } from "@mui/material";
 
+interface MessageAttachment {
+  type: string;
+  payload: {
+    url: string;
+    title?: string;
+  };
+}
+
+interface MessageFrom {
+  id: string;
+  name: string;
+  picture?: string | null;
+}
+
 interface InboxDetailProps {
   conversationId: string | null;
-  pageAccessToken?: string;
   pageIds: string[]; // Array of page IDs for message context
 }
 
-export const InboxDetail = memo(function InboxDetail({ conversationId, pageAccessToken, pageIds }: InboxDetailProps) {
+export const InboxDetail = memo(function InboxDetail({ conversationId, pageIds }: InboxDetailProps) {
   const [inputValue, setInputValue] = useState("");
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -31,38 +44,26 @@ export const InboxDetail = memo(function InboxDetail({ conversationId, pageAcces
     clearMessagesError
   } = useMessages();
 
-  const { conversations } = useConversations();
+  const { conversations, getConversationAccessToken } = useConversations();
   
   // Get current conversation to extract recipient PSID
   const currentConversation = conversations.find(c => c.id === conversationId);
   const recipientId = currentConversation?.participants?.data?.[0]?.id;
+  
+  // Get the correct access token for this conversation
+  const conversationAccessToken = conversationId ? getConversationAccessToken(conversationId) : null;
 
-  // Debug log
-  useEffect(() => {
-    if (conversationId) {
-      console.log('=== Message Detail Debug ===');
-      console.log('Page IDs:', pageIds);
-      console.log('Current conversation:', currentConversation);
-      console.log('Recipient PSID:', recipientId);
-      console.log('Messages count:', messages.length);
-      if (messages.length > 0) {
-        console.log('Sample message from:', messages[0]?.from);
-        console.log('Is own message?', pageIds.includes(messages[0]?.from.id));
-      }
-    }
-  }, [conversationId, recipientId, messages, pageIds]);
 
   // Fetch messages when conversationId changes
   useEffect(() => {
-    if (conversationId && pageAccessToken) {
-      console.log('Fetching messages for conversation:', conversationId);
+    if (conversationId && conversationAccessToken) {
       loadMessages({
         conversationId,
-        pageAccessToken,
+        pageAccessToken: conversationAccessToken,
         limit: 50,
       });
     }
-  }, [conversationId, pageAccessToken]);
+  }, [conversationId, conversationAccessToken]);
 
   // Scroll to bottom when messages load
   useEffect(() => {
@@ -72,14 +73,7 @@ export const InboxDetail = memo(function InboxDetail({ conversationId, pageAcces
   }, [messages]);
 
   const handleSend = async () => {
-    if (!inputValue.trim() || !conversationId || !pageAccessToken || pageIds.length === 0 || !recipientId) {
-      console.warn('Missing required params:', { 
-        hasInput: !!inputValue.trim(), 
-        hasConversationId: !!conversationId, 
-        hasPageAccessToken: !!pageAccessToken,
-        hasPageIds: pageIds.length > 0,
-        hasRecipientId: !!recipientId
-      });
+    if (!inputValue.trim() || !conversationId || !conversationAccessToken || pageIds.length === 0 || !recipientId) {
       return;
     }
     
@@ -88,21 +82,20 @@ export const InboxDetail = memo(function InboxDetail({ conversationId, pageAcces
     
     // Use the first page ID for sending (in future, could let user choose)
     const pageId = pageIds[0];
-    console.log('Sending message with params:', { pageId, recipientId, message: messageText });
     
     try {
       await sendNewMessage({
         pageId: pageId,
         recipientId: recipientId!,
         message: messageText,
-        pageAccessToken: pageAccessToken,
+        pageAccessToken: conversationAccessToken,
       });
       
       // Reload messages after sending
       setTimeout(() => {
         loadMessages({
           conversationId,
-          pageAccessToken,
+          pageAccessToken: conversationAccessToken,
           limit: 50,
         });
       }, 500);
@@ -178,9 +171,10 @@ export const InboxDetail = memo(function InboxDetail({ conversationId, pageAcces
         className="flex-1 overflow-y-auto px-4 py-4 space-y-4 scrollbar-messenger"
       >
         {/* Reverse messages array so newest messages appear at the bottom */}
-        {[...messages].reverse().map((msg) => {
+        {[...messages].reverse().map((msg: any) => {
           // Check if message is from any of the selected pages
-          const isOwnMessage = pageIds.includes(msg.from.id);
+          const isOwnMessage = pageIds.includes(msg.from?.id);
+          const from: MessageFrom = msg.from || { id: '', name: 'Unknown', picture: null };
           
           return (
             <div
@@ -198,15 +192,78 @@ export const InboxDetail = memo(function InboxDetail({ conversationId, pageAcces
                     : "bg-muted text-foreground"
                 )}
               >
-                {/* Show sender name if not own message */}
+                {/* Show sender name and picture if not own message */}
                 {!isOwnMessage && (
-                  <p className="text-xs font-semibold mb-1 text-foreground/80">
-                    {msg.from.name}
+                  <div className="flex items-center gap-2 mb-1">
+                    {from.picture && (
+                      <img 
+                        src={from.picture} 
+                        alt={from.name}
+                        className="w-6 h-6 rounded-full object-cover"
+                      />
+                    )}
+                    <p className="text-xs font-semibold text-foreground/80">
+                      {from.name}
+                    </p>
+                  </div>
+                )}
+                
+                {/* Message text */}
+                {msg.message && (
+                  <p className="text-sm whitespace-pre-wrap break-words">
+                    {msg.message}
                   </p>
                 )}
-                <p className="text-sm whitespace-pre-wrap break-words">
-                  {msg.message || '[No text]'}
-                </p>
+                
+                {/* Attachments */}
+                {msg.attachments && Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
+                  <div className="mt-2 space-y-2">
+                    {msg.attachments.map((attachment: any, index: number) => (
+                      <div key={index}>
+                        {attachment.type === 'image' && (
+                          <img 
+                            src={attachment.payload.url} 
+                            alt="Attachment"
+                            className="max-w-full h-auto rounded-lg"
+                            style={{ maxHeight: '300px' }}
+                          />
+                        )}
+                        {attachment.type === 'video' && (
+                          <video 
+                            src={attachment.payload.url} 
+                            controls
+                            className="max-w-full h-auto rounded-lg"
+                            style={{ maxHeight: '300px' }}
+                          />
+                        )}
+                        {attachment.type === 'audio' && (
+                          <audio 
+                            src={attachment.payload.url} 
+                            controls
+                            className="w-full"
+                          />
+                        )}
+                        {attachment.type === 'file' && (
+                          <a 
+                            href={attachment.payload.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-blue-500 hover:underline"
+                          >
+                            📎 {attachment.payload.title || 'Download file'}
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {/* Show [No text] only if no message and no attachments */}
+                {!msg.message && (!msg.attachments || !Array.isArray(msg.attachments) || msg.attachments.length === 0) && (
+                  <p className="text-sm text-muted-foreground italic">
+                    [No text]
+                  </p>
+                )}
                 <p className={clsx(
                   "text-xs mt-1",
                   isOwnMessage ? "text-primary-foreground/70" : "text-muted-foreground"

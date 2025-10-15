@@ -18,9 +18,6 @@ export default function Inbox() {
     return selectedPageIds.length > 0 ? selectedPageIds : pages.map((p: any) => p.id);
   }, [selectedPageIds, pages]);
 
-  // Get the first selected page for access token (or first available page)
-  const currentPage = pages.find(p => subscriptionPageIds.includes(p.id)) || pages[0];
-
   // Use WebSocket with scoped subscription
   const { conversations: websocketConversations } = useFacebookWebhook({
     pageIds: subscriptionPageIds,
@@ -54,7 +51,6 @@ export default function Inbox() {
       <div className="flex-1 min-w-0">
         <InboxDetail
           conversationId={selectedMessageId}
-          pageAccessToken={currentPage?.access_token}
           pageIds={subscriptionPageIds}
         />
       </div>

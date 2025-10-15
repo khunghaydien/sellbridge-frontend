@@ -6,6 +6,7 @@ import {
   setSelectedConversation,
   clearConversations,
   clearConversationError,
+  addWebsocketConversation,
   selectConversations,
   selectConversationPaging,
   selectConversationsLoading,
@@ -13,8 +14,8 @@ import {
   selectSelectedConversationId,
   selectSelectedConversation,
   selectHasConversations,
-  selectConversationCurrentPageId,
-  selectConversationPageAccessToken,
+  selectConversationPageMapping,
+  selectCurrentPageAccessTokens,
 } from '@/store/slices';
 import type { GetConversationsParams, GetMultiplePageConversationsParams } from '../services';
 
@@ -29,13 +30,12 @@ export function useConversations() {
   const selectedConversationId = useAppSelector(selectSelectedConversationId);
   const selectedConversation = useAppSelector(selectSelectedConversation);
   const hasConversations = useAppSelector(selectHasConversations);
-  const currentPageId = useAppSelector(selectConversationCurrentPageId);
-  const currentPageAccessToken = useAppSelector(selectConversationPageAccessToken);
+  const conversationPageMapping = useAppSelector(selectConversationPageMapping);
+  const currentPageAccessTokens = useAppSelector(selectCurrentPageAccessTokens);
 
   // Actions
   const loadConversations = useCallback(
     (params: GetConversationsParams) => {
-      console.log('loadConversations called with params:', params);
       return dispatch(fetchConversations(params));
     },
     [dispatch]
@@ -43,7 +43,6 @@ export function useConversations() {
 
   const loadMultiplePageConversations = useCallback(
     (params: GetMultiplePageConversationsParams) => {
-      console.log('loadMultiplePageConversations called with params:', params);
       return dispatch(fetchMultiplePageConversations(params));
     },
     [dispatch]
@@ -64,6 +63,16 @@ export function useConversations() {
     dispatch(clearConversationError());
   }, [dispatch]);
 
+  const addWebsocketConversationToStore = useCallback((conversation: any, pageId: string) => {
+    dispatch(addWebsocketConversation({ conversation, pageId }));
+  }, [dispatch]);
+
+  // Helper function to get access token for a conversation
+  const getConversationAccessToken = useCallback((conversationId: string) => {
+    const pageId = conversationPageMapping[conversationId];
+    return pageId ? currentPageAccessTokens[pageId] : null;
+  }, [conversationPageMapping, currentPageAccessTokens]);
+
   return {
     // State
     conversations,
@@ -73,8 +82,8 @@ export function useConversations() {
     selectedConversationId,
     selectedConversation,
     hasConversations,
-    currentPageId,
-    currentPageAccessToken,
+    conversationPageMapping,
+    currentPageAccessTokens,
 
     // Actions
     loadConversations,
@@ -82,6 +91,8 @@ export function useConversations() {
     selectConversation,
     clearAllConversations,
     clearConversationsError,
+    addWebsocketConversationToStore,
+    getConversationAccessToken,
   };
 }
 
