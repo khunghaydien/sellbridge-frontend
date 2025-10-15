@@ -19,16 +19,15 @@ import {
 import { PostService } from "../services";
 import { usePages } from "@/features/page/hooks";
 
-interface CreatePostProps {
-  pageId: string;
-}
-
 type PostType = 'text' | 'photo-url' | 'photo-upload';
 
-export default function CreatePost({ pageId }: CreatePostProps) {
+export default function Post() {
   const router = useRouter();
-  const { pages } = usePages();
-  const currentPage = pages.find(p => p.id === pageId);
+  const { pages, selectedPageIds } = usePages();
+  
+  // Use selected pages from Redux, require exactly one for create post
+  const selectedPages = pages.filter(p => selectedPageIds.includes(p.id));
+  const currentPage = selectedPages.length === 1 ? selectedPages[0] : null;
 
   const [postType, setPostType] = useState<PostType>('text');
   const [message, setMessage] = useState("");
@@ -40,6 +39,37 @@ export default function CreatePost({ pageId }: CreatePostProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Show error if no page or multiple pages selected
+  if (selectedPageIds.length === 0) {
+    return (
+      <Box p={4}>
+        <Alert severity="warning">
+          Please select exactly one page to create a post.
+        </Alert>
+      </Box>
+    );
+  }
+
+  if (selectedPageIds.length > 1) {
+    return (
+      <Box p={4}>
+        <Alert severity="warning">
+          Please select only one page to create a post. Currently {selectedPageIds.length} pages are selected.
+        </Alert>
+      </Box>
+    );
+  }
+
+  if (!currentPage) {
+    return (
+      <Box p={4}>
+        <Alert severity="error">
+          Selected page not found. Please refresh and try again.
+        </Alert>
+      </Box>
+    );
+  }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -82,7 +112,7 @@ export default function CreatePost({ pageId }: CreatePostProps) {
             return;
           }
           result = await PostService.createPost({
-            pageId,
+            pageId: currentPage.id,
             message: message.trim(),
             pageAccessToken: currentPage.access_token,
             link: link.trim() || undefined,
@@ -97,7 +127,7 @@ export default function CreatePost({ pageId }: CreatePostProps) {
             return;
           }
           result = await PostService.createPhotoPost({
-            pageId,
+            pageId: currentPage.id,
             caption: caption.trim(),
             url: photoUrl.trim(),
             pageAccessToken: currentPage.access_token,
@@ -112,7 +142,7 @@ export default function CreatePost({ pageId }: CreatePostProps) {
             return;
           }
           result = await PostService.uploadPhotoPost({
-            pageId,
+            pageId: currentPage.id,
             photo: photoFile,
             caption: caption.trim() || undefined,
             pageAccessToken: currentPage.access_token,
@@ -141,19 +171,6 @@ export default function CreatePost({ pageId }: CreatePostProps) {
       setIsLoading(false);
     }
   };
-
-  if (!currentPage) {
-    return (
-      <Box p={4}>
-        <Alert severity="warning">
-          Page not found. Please go back and select a page.
-        </Alert>
-        <Button variant="outlined" onClick={() => router.push('/')} sx={{ mt: 2 }}>
-          Back to Pages
-        </Button>
-      </Box>
-    );
-  }
 
   return (
     <Box p={4} maxWidth="800px" mx="auto">
@@ -377,6 +394,3 @@ export default function CreatePost({ pageId }: CreatePostProps) {
     </Box>
   );
 }
-
-
-

@@ -21,12 +21,14 @@ interface WebhookMessage {
 }
 
 interface UseFacebookWebhookOptions {
-  pageId?: string;
+  pageIds?: string[]; // pages to subscribe to
+  accessToken?: string; // page or user token if needed by backend
   autoConnect?: boolean;
 }
 
 interface UseFacebookWebhookReturn {
   messages: WebhookMessage[];
+  conversations: any[]; // Conversations from backend
   isConnected: boolean;
   error: string | null;
   connect: () => void;
@@ -37,9 +39,10 @@ interface UseFacebookWebhookReturn {
 export function useFacebookWebhook(
   options: UseFacebookWebhookOptions = {}
 ): UseFacebookWebhookReturn {
-  const { pageId, autoConnect = true } = options;
+  const { pageIds = [], accessToken, autoConnect = true } = options;
   
   const [messages, setMessages] = useState<WebhookMessage[]>([]);
+  const [conversations, setConversations] = useState<any[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
@@ -71,7 +74,13 @@ export function useFacebookWebhook(
         console.log('WebSocket connected:', socket.id);
         setIsConnected(true);
         setError(null);
-
+        // After connected, send subscription payload
+        const payload = {
+          accessToken,
+          pageIds,
+        };
+        socket.emit('connectPages', payload);
+        console.log('Sent connectPages payload:', payload);
       });
 
       socket.on('disconnect', (reason) => {
@@ -91,6 +100,28 @@ export function useFacebookWebhook(
         setMessages((prev) => [data, ...prev]);
       });
 
+      // Listen for new conversations (emitted by backend)
+      socket.on('new_conversation', (data: any) => {
+        console.log('Received new conversation:', data);
+        setConversations((prev) => {
+          // Check if conversation already exists (update if exists, add if new)
+          const existingIndex = prev.findIndex(conv => conv.id === data.id);
+          if (existingIndex >= 0) {
+            // Update existing conversation
+            const updated = [...prev];
+            updated[existingIndex] = {
+              ...data,
+              message_count: updated[existingIndex].message_count + 1,
+              unread_count: updated[existingIndex].unread_count + 1,
+            };
+            return updated;
+          } else {
+            // Add new conversation at the beginning (newest first)
+            return [data, ...prev];
+          }
+        });
+      });
+
 
 
       socketRef.current = socket;
@@ -98,7 +129,16 @@ export function useFacebookWebhook(
       console.error('Error creating socket:', err);
       setError(`Failed to create socket: ${err}`);
     }
-  }, [pageId]);
+  }, [JSON.stringify(pageIds), accessToken]);
+
+  // Re-subscribe when pageIds change on an active socket
+  useEffect(() => {
+    if (socketRef.current && socketRef.current.connected) {
+      const payload = { accessToken, pageIds };
+      socketRef.current.emit('connectPages', payload);
+      console.log('Updated connectPages payload:', payload);
+    }
+  }, [JSON.stringify(pageIds), accessToken]);
 
   const disconnect = useCallback(() => {
     if (socketRef.current) {
@@ -111,6 +151,7 @@ export function useFacebookWebhook(
 
   const clearMessages = useCallback(() => {
     setMessages([]);
+    setConversations([]);
   }, []);
 
   useEffect(() => {
@@ -125,6 +166,7 @@ export function useFacebookWebhook(
 
   return {
     messages,
+    conversations,
     isConnected,
     error,
     connect,

@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { ConversationService, GetConversationsParams } from '@/features/inbox/services';
+import { ConversationService, GetConversationsParams, GetMultiplePageConversationsParams } from '@/features/inbox/services';
 
 // Define types
 export interface Participant {
@@ -21,6 +21,7 @@ export interface Conversation {
   snippet: string;
   unread_count: number;
   updated_time: string;
+  pageId?: string; // Added for multi-page support
 }
 
 export interface ConversationPaging {
@@ -37,6 +38,8 @@ interface ConversationState {
   paging: ConversationPaging | null;
   currentPageId: string | null;
   currentPageAccessToken: string | null;
+  currentPageIds: string[]; // Added for multi-page support
+  currentPageAccessTokens: Record<string, string>; // Added for multi-page support
   isLoading: boolean;
   error: string | null;
   selectedConversationId: string | null;
@@ -48,6 +51,8 @@ const initialState: ConversationState = {
   paging: null,
   currentPageId: null,
   currentPageAccessToken: null,
+  currentPageIds: [],
+  currentPageAccessTokens: {},
   isLoading: false,
   error: null,
   selectedConversationId: null,
@@ -65,6 +70,22 @@ export const fetchConversations = createAsyncThunk(
     } catch (error: any) {
       console.error('fetchConversations error:', error);
       return rejectWithValue(error.message || 'Failed to fetch conversations');
+    }
+  }
+);
+
+// Async thunk to fetch conversations from multiple pages
+export const fetchMultiplePageConversations = createAsyncThunk(
+  'conversation/fetchMultiplePageConversations',
+  async (params: GetMultiplePageConversationsParams, { rejectWithValue }) => {
+    try {
+      console.log('fetchMultiplePageConversations thunk started with params:', params);
+      const response = await ConversationService.getMultiplePageConversations(params);
+      console.log('fetchMultiplePageConversations response:', response);
+      return { response, params };
+    } catch (error: any) {
+      console.error('fetchMultiplePageConversations error:', error);
+      return rejectWithValue(error.message || 'Failed to fetch multiple page conversations');
     }
   }
 );
@@ -117,6 +138,36 @@ const conversationSlice = createSlice({
       })
       // Fetch conversations - rejected
       .addCase(fetchConversations.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      })
+      // Fetch multiple page conversations - pending
+      .addCase(fetchMultiplePageConversations.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      // Fetch multiple page conversations - fulfilled
+      .addCase(fetchMultiplePageConversations.fulfilled, (state, action: PayloadAction<any>) => {
+        state.isLoading = false;
+        const { response, params } = action.payload;
+        
+        // Store current page info
+        state.currentPageIds = params.pageIds;
+        state.currentPageAccessTokens = params.pageAccessTokens;
+        
+        // Handle nested data structure: response.data.data
+        if (response.data && Array.isArray(response.data.data)) {
+          state.conversations = response.data.data;
+          state.paging = response.data.paging || null;
+        } else if (Array.isArray(response.data)) {
+          state.conversations = response.data;
+        } else if (Array.isArray(response)) {
+          state.conversations = response;
+        }
+        state.error = null;
+      })
+      // Fetch multiple page conversations - rejected
+      .addCase(fetchMultiplePageConversations.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
       });

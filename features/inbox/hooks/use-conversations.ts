@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   fetchConversations,
+  fetchMultiplePageConversations,
   setSelectedConversation,
   clearConversations,
   clearConversationError,
@@ -15,7 +16,7 @@ import {
   selectConversationCurrentPageId,
   selectConversationPageAccessToken,
 } from '@/store/slices';
-import type { GetConversationsParams } from '../services';
+import type { GetConversationsParams, GetMultiplePageConversationsParams } from '../services';
 
 export function useConversations() {
   const dispatch = useAppDispatch();
@@ -36,6 +37,14 @@ export function useConversations() {
     (params: GetConversationsParams) => {
       console.log('loadConversations called with params:', params);
       return dispatch(fetchConversations(params));
+    },
+    [dispatch]
+  );
+
+  const loadMultiplePageConversations = useCallback(
+    (params: GetMultiplePageConversationsParams) => {
+      console.log('loadMultiplePageConversations called with params:', params);
+      return dispatch(fetchMultiplePageConversations(params));
     },
     [dispatch]
   );
@@ -69,6 +78,7 @@ export function useConversations() {
 
     // Actions
     loadConversations,
+    loadMultiplePageConversations,
     selectConversation,
     clearAllConversations,
     clearConversationsError,

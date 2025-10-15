@@ -23,6 +23,7 @@ interface PageState {
   isLoading: boolean;
   error: string | null;
   selectedPageId: string | null;
+  selectedPageIds: string[]; // multi-select for connections
 }
 
 // Initial state
@@ -32,6 +33,7 @@ const initialState: PageState = {
   isLoading: false,
   error: null,
   selectedPageId: null,
+  selectedPageIds: [],
 };
 
 // Async thunk to fetch pages
@@ -59,10 +61,25 @@ const pageSlice = createSlice({
     setSelectedPage: (state, action: PayloadAction<string | null>) => {
       state.selectedPageId = action.payload;
     },
+    toggleSelectPage: (state, action: PayloadAction<string>) => {
+      const id = action.payload;
+      if (state.selectedPageIds.includes(id)) {
+        state.selectedPageIds = state.selectedPageIds.filter((p) => p !== id);
+      } else {
+        state.selectedPageIds.push(id);
+      }
+    },
+    setSelectedPages: (state, action: PayloadAction<string[]>) => {
+      state.selectedPageIds = Array.from(new Set(action.payload));
+    },
+    clearSelectedPages: (state) => {
+      state.selectedPageIds = [];
+    },
     clearPages: (state) => {
       state.pages = [];
       state.error = null;
       state.selectedPageId = null;
+      state.selectedPageIds = [];
     },
     clearPageError: (state) => {
       state.error = null;

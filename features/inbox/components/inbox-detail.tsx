@@ -10,10 +10,10 @@ import { CircularProgress, Alert } from "@mui/material";
 interface InboxDetailProps {
   conversationId: string | null;
   pageAccessToken?: string;
-  pageId?: string; // Add pageId to identify page messages
+  pageIds: string[]; // Array of page IDs for message context
 }
 
-export const InboxDetail = memo(function InboxDetail({ conversationId, pageAccessToken, pageId }: InboxDetailProps) {
+export const InboxDetail = memo(function InboxDetail({ conversationId, pageAccessToken, pageIds }: InboxDetailProps) {
   const [inputValue, setInputValue] = useState("");
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -41,16 +41,16 @@ export const InboxDetail = memo(function InboxDetail({ conversationId, pageAcces
   useEffect(() => {
     if (conversationId) {
       console.log('=== Message Detail Debug ===');
-      console.log('Page ID:', pageId);
+      console.log('Page IDs:', pageIds);
       console.log('Current conversation:', currentConversation);
       console.log('Recipient PSID:', recipientId);
       console.log('Messages count:', messages.length);
       if (messages.length > 0) {
         console.log('Sample message from:', messages[0]?.from);
-        console.log('Is own message?', messages[0]?.from.id === pageId);
+        console.log('Is own message?', pageIds.includes(messages[0]?.from.id));
       }
     }
-  }, [conversationId, recipientId, messages, pageId]);
+  }, [conversationId, recipientId, messages, pageIds]);
 
   // Fetch messages when conversationId changes
   useEffect(() => {
@@ -72,12 +72,12 @@ export const InboxDetail = memo(function InboxDetail({ conversationId, pageAcces
   }, [messages]);
 
   const handleSend = async () => {
-    if (!inputValue.trim() || !conversationId || !pageAccessToken || !pageId || !recipientId) {
+    if (!inputValue.trim() || !conversationId || !pageAccessToken || pageIds.length === 0 || !recipientId) {
       console.warn('Missing required params:', { 
         hasInput: !!inputValue.trim(), 
         hasConversationId: !!conversationId, 
         hasPageAccessToken: !!pageAccessToken,
-        hasPageId: !!pageId,
+        hasPageIds: pageIds.length > 0,
         hasRecipientId: !!recipientId
       });
       return;
@@ -86,11 +86,13 @@ export const InboxDetail = memo(function InboxDetail({ conversationId, pageAcces
     const messageText = inputValue.trim();
     setInputValue(""); // Clear input immediately
     
+    // Use the first page ID for sending (in future, could let user choose)
+    const pageId = pageIds[0];
     console.log('Sending message with params:', { pageId, recipientId, message: messageText });
     
     try {
       await sendNewMessage({
-        pageId: pageId!,
+        pageId: pageId,
         recipientId: recipientId!,
         message: messageText,
         pageAccessToken: pageAccessToken,
@@ -177,8 +179,8 @@ export const InboxDetail = memo(function InboxDetail({ conversationId, pageAcces
       >
         {/* Reverse messages array so newest messages appear at the bottom */}
         {[...messages].reverse().map((msg) => {
-          // Check if message is from the page (compare sender ID with page ID)
-          const isOwnMessage = msg.from.id === pageId;
+          // Check if message is from any of the selected pages
+          const isOwnMessage = pageIds.includes(msg.from.id);
           
           return (
             <div

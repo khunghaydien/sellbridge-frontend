@@ -3,7 +3,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { getMessages, getLocale } from "next-intl/server";
 import { NextIntlClientProvider } from "next-intl";
-import { ThemeProvider, AuthProvider, ReduxProvider, FacebookWebhookProvider } from "@/providers";
+import { ThemeProvider, AuthProvider, ReduxProvider } from "@/providers";
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
   variable: "--font-geist-sans",
@@ -41,9 +41,7 @@ export default async function RootLayout({
           >
             <NextIntlClientProvider messages={messages} locale={locale}>
               <AuthProvider>
-                <FacebookWebhookProvider>
-                  {children}
-                </FacebookWebhookProvider>
+                {children}
               </AuthProvider>
             </NextIntlClientProvider>
           </ThemeProvider>

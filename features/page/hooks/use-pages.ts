@@ -25,6 +25,7 @@ export function usePages() {
   const selectedPageId = useAppSelector(selectSelectedPageId);
   const selectedPage = useAppSelector(selectSelectedPage);
   const hasPages = useAppSelector(selectHasPages);
+  const selectedPageIds = useAppSelector((state) => state.page.selectedPageIds);
 
   // Actions
   const loadPages = useCallback(() => {
@@ -38,6 +39,18 @@ export function usePages() {
     },
     [dispatch]
   );
+
+  const toggleSelectPage = useCallback((pageId: string) => {
+    dispatch({ type: 'page/toggleSelectPage', payload: pageId });
+  }, [dispatch]);
+
+  const setSelectedPages = useCallback((pageIds: string[]) => {
+    dispatch({ type: 'page/setSelectedPages', payload: pageIds });
+  }, [dispatch]);
+
+  const clearSelectedPages = useCallback(() => {
+    dispatch({ type: 'page/clearSelectedPages' });
+  }, [dispatch]);
 
   const clearAllPages = useCallback(() => {
     dispatch(clearPages());
@@ -56,10 +69,14 @@ export function usePages() {
     selectedPageId,
     selectedPage,
     hasPages,
+    selectedPageIds,
     
     // Actions
     loadPages,
     selectPage,
+    toggleSelectPage,
+    setSelectedPages,
+    clearSelectedPages,
     clearAllPages,
     clearPagesError,
   };

@@ -1,22 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { InboxFilter } from "./inbox-filter";
 import { InboxList } from "./inbox-list";
 import { CheckoutSection } from "./checkout-section";
 import { usePages } from "@/features/page/hooks";
+import { useFacebookWebhook } from "@/hooks/use-facebook-webhook";
 import InboxDetail from "./inbox-detail";
 
-interface InboxProps {
-  pageId?: string;
-}
-
-export default function Inbox({ pageId }: InboxProps) {
+export default function Inbox() {
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<string>("all");
   
-  const { pages } = usePages();
-  const currentPage = pages.find(p => p.id === pageId);
+  const { pages, selectedPageIds } = usePages();
+  // Use selected pages from Redux, fallback to all pages if none selected
+  const subscriptionPageIds = useMemo(() => {
+    return selectedPageIds.length > 0 ? selectedPageIds : pages.map((p: any) => p.id);
+  }, [selectedPageIds, pages]);
+
+  // Get the first selected page for access token (or first available page)
+  const currentPage = pages.find(p => subscriptionPageIds.includes(p.id)) || pages[0];
+
+  // Use WebSocket with scoped subscription
+  const { conversations: websocketConversations } = useFacebookWebhook({
+    pageIds: subscriptionPageIds,
+    // Optional: send a token if required by backend later
+    autoConnect: true,
+  });
 
 
   return (
@@ -32,10 +42,11 @@ export default function Inbox({ pageId }: InboxProps) {
       {/* Column 2: Message List */}
       <div className="w-80 flex-shrink-0">
         <InboxList
-          pageId={pageId}
+          pageIds={subscriptionPageIds}
           filter={activeFilter}
           selectedMessageId={selectedMessageId}
           onMessageSelect={setSelectedMessageId}
+          websocketConversations={websocketConversations}
         />
       </div>
 
@@ -44,7 +55,7 @@ export default function Inbox({ pageId }: InboxProps) {
         <InboxDetail
           conversationId={selectedMessageId}
           pageAccessToken={currentPage?.access_token}
-          pageId={pageId}
+          pageIds={subscriptionPageIds}
         />
       </div>
 

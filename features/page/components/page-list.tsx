@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePages } from '../hooks';
 import { useAuth } from '@/hooks/use-auth';
-import { Box, Typography, CircularProgress, Alert, Card, CardContent, Grid, Button } from '@mui/material';
+import { Box, Typography, CircularProgress, Alert, Card, CardContent, Grid, Button, Checkbox } from '@mui/material';
 import { useTranslations } from 'next-intl';
 
 export default function PageList() {
@@ -16,39 +16,39 @@ export default function PageList() {
     isLoading, 
     error, 
     loadPages,
-    selectPage,
-    selectedPage,
     hasPages,
-    clearPagesError
+    clearPagesError,
+    selectedPageIds,
+    toggleSelectPage,
+    setSelectedPages,
   } = usePages();
 
-  const handlePageClick = (pageId: string) => {
-    console.log('Page clicked:', pageId);
-    selectPage(pageId);
-    // Small delay to ensure state is updated
-    setTimeout(() => {
-      router.push(`/page/${pageId}`);
-    }, 100);
+  const handleToggleSelect = (pageId: string) => {
+    toggleSelectPage(pageId);
   };
 
-  const handleCreatePost = (pageId: string, e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent card click
-    console.log('Create post clicked for page:', pageId);
-    selectPage(pageId);
-    router.push(`/page/${pageId}/create-post`);
+  const handleGoMessages = () => {
+    // Route to inbox page; inbox will use selectedPageIds from Redux
+    router.push(`/inbox`);
+  };
+
+  const handleGoCreatePost = () => {
+    if (selectedPageIds.length === 0) {
+      alert('Please select at least one page to create a post');
+      return;
+    }
+    if (selectedPageIds.length > 1) {
+      alert('Please select only one page to create a post');
+      return;
+    }
+    // Route to post page; CreatePost will use the single selected page
+    router.push(`/post`);
   };
 
   // Fetch pages khi component mount và đã authenticated
   useEffect(() => {
-    console.log('PageList mounted');
-    console.log('isAuthenticated:', isAuthenticated);
-    console.log('authLoading:', authLoading);
-    
     if (!authLoading && isAuthenticated) {
-      console.log('Calling loadPages...');
       loadPages();
-    } else {
-      console.log('Skipping loadPages - not ready yet');
     }
   }, [isAuthenticated, authLoading]);
 
@@ -148,9 +148,17 @@ export default function PageList() {
         <Typography variant="h4" component="h1" fontWeight="bold">
           Facebook Pages
         </Typography>
-        <Button variant="outlined" onClick={() => loadPages()}>
-          Refresh
-        </Button>
+        <Box display="flex" gap={1}>
+          <Button variant="outlined" onClick={() => loadPages()}>
+            Refresh
+          </Button>
+          <Button variant="contained" onClick={handleGoMessages}>
+            Inbox
+          </Button>
+          <Button variant="contained" color="secondary" onClick={handleGoCreatePost}>
+            Create Post
+          </Button>
+        </Box>
       </Box>
 
       <Grid container spacing={3}>
@@ -160,14 +168,14 @@ export default function PageList() {
               sx={{
                 cursor: 'pointer',
                 transition: 'all 0.3s ease',
-                border: selectedPage?.id === page.id ? '2px solid primary.main' : '1px solid',
-                borderColor: selectedPage?.id === page.id ? 'primary.main' : 'divider',
+                border: selectedPageIds.includes(page.id) ? '2px solid' : '1px solid',
+                borderColor: selectedPageIds.includes(page.id) ? 'primary.main' : 'divider',
                 '&:hover': {
                   transform: 'translateY(-4px)',
                   boxShadow: 3,
                 },
               }}
-              onClick={() => handlePageClick(page.id)}
+              onClick={() => handleToggleSelect(page.id)}
             >
               <CardContent>
                 <Typography variant="h6" component="h2" gutterBottom noWrap>
@@ -179,6 +187,17 @@ export default function PageList() {
                 <Typography variant="caption" color="textSecondary" display="block" mt={1}>
                   ID: {page.id}
                 </Typography>
+                <Box mt={1} display="flex" alignItems="center" gap={1}>
+                  <Checkbox
+                    checked={selectedPageIds.includes(page.id)}
+                    onChange={() => handleToggleSelect(page.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    size="small"
+                  />
+                  <Typography variant="caption" color="textSecondary">
+                    {selectedPageIds.includes(page.id) ? 'Selected' : 'Click to select'}
+                  </Typography>
+                </Box>
                 {page.tasks && page.tasks.length > 0 && (
                   <Box mt={1} display="flex" flexWrap="wrap" gap={0.5}>
                     {page.tasks.slice(0, 3).map((task: string) => (
@@ -214,114 +233,100 @@ export default function PageList() {
                   </Box>
                 )}
                 
-                {/* Action Buttons */}
-                <Box mt={2} display="flex" gap={1}>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handlePageClick(page.id);
-                    }}
-                    fullWidth
-                  >
-                    Messages
-                  </Button>
-                  <Button
-                    size="small"
-                    variant="contained"
-                    onClick={(e) => handleCreatePost(page.id, e)}
-                    fullWidth
-                  >
-                    Create Post
-                  </Button>
-                </Box>
+                {/* No per-item action buttons; selection only */}
               </CardContent>
             </Card>
           </Grid>
         ))}
       </Grid>
 
-      {selectedPage && (
+      {selectedPageIds.length > 0 && (
         <Box mt={4} p={3} bgcolor="background.paper" borderRadius={2} boxShadow={1}>
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
             <Typography variant="h5">
-              Selected Page
+              Selected Pages ({selectedPageIds.length})
             </Typography>
             <Box display="flex" gap={1}>
               <Button 
                 variant="contained"
                 size="small"
-                onClick={() => router.push(`/page/${selectedPage.id}/create-post`)}
+                onClick={handleGoCreatePost}
+                disabled={selectedPageIds.length !== 1}
               >
-                Create Post
+                Create Post {selectedPageIds.length !== 1 && `(${selectedPageIds.length} selected)`}
               </Button>
               <Button 
                 variant="outlined"
                 size="small"
-                onClick={() => router.push(`/page/${selectedPage.id}`)}
+                onClick={handleGoMessages}
               >
                 Messages
               </Button>
               <Button 
                 variant="outlined" 
                 size="small"
-                onClick={() => selectPage(null)}
+                onClick={() => setSelectedPages([])}
               >
-                Deselect
+                Deselect All
               </Button>
             </Box>
           </Box>
           
           <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
-              <Typography variant="body1" gutterBottom>
-                <strong>Name:</strong> {selectedPage.name}
-              </Typography>
-              <Typography variant="body1" gutterBottom>
-                <strong>ID:</strong> {selectedPage.id}
-              </Typography>
-              <Typography variant="body1" gutterBottom>
-                <strong>Category:</strong> {selectedPage.category}
-              </Typography>
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <Typography variant="body1" gutterBottom>
-                <strong>Tasks:</strong>
-              </Typography>
-              <Box display="flex" flexWrap="wrap" gap={1} mt={1}>
-                {selectedPage.tasks.map((task: string) => (
-                  <Typography
-                    key={task}
-                    variant="body2"
-                    sx={{
-                      px: 1.5,
-                      py: 0.5,
-                      bgcolor: 'primary.main',
-                      color: 'primary.contrastText',
-                      borderRadius: 1,
-                      fontSize: '0.75rem',
-                    }}
-                  >
-                    {task}
-                  </Typography>
-                ))}
-              </Box>
-            </Grid>
-            
-            <Grid item xs={12}>
-              <Typography variant="body2" color="textSecondary" sx={{ 
-                wordBreak: 'break-all',
-                fontSize: '0.7rem',
-                mt: 1,
-                p: 1,
-                bgcolor: 'grey.100',
-                borderRadius: 1,
-              }}>
-                <strong>Access Token:</strong> {selectedPage.access_token}
-              </Typography>
-            </Grid>
+            {selectedPageIds.map((pageId) => {
+              const page = pages.find(p => p.id === pageId);
+              if (!page) return null;
+              
+              return (
+                <Grid item xs={12} md={6} key={pageId}>
+                  <Box p={2} border={1} borderColor="divider" borderRadius={1}>
+                    <Typography variant="h6" gutterBottom>
+                      {page.name}
+                    </Typography>
+                    <Typography variant="body2" color="textSecondary" gutterBottom>
+                      <strong>ID:</strong> {page.id}
+                    </Typography>
+                    <Typography variant="body2" color="textSecondary" gutterBottom>
+                      <strong>Category:</strong> {page.category}
+                    </Typography>
+                    {page.tasks && page.tasks.length > 0 && (
+                      <Box display="flex" flexWrap="wrap" gap={0.5} mt={1}>
+                        {page.tasks.slice(0, 3).map((task: string) => (
+                          <Typography
+                            key={task}
+                            variant="caption"
+                            sx={{
+                              px: 1,
+                              py: 0.25,
+                              bgcolor: 'primary.main',
+                              color: 'primary.contrastText',
+                              borderRadius: 1,
+                              fontSize: '0.65rem',
+                            }}
+                          >
+                            {task}
+                          </Typography>
+                        ))}
+                        {page.tasks.length > 3 && (
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              px: 1,
+                              py: 0.25,
+                              bgcolor: 'grey.300',
+                              borderRadius: 1,
+                              fontSize: '0.65rem',
+                            }}
+                          >
+                            +{page.tasks.length - 3}
+                          </Typography>
+                        )}
+                      </Box>
+                    )}
+                  </Box>
+                </Grid>
+              );
+            })}
           </Grid>
         </Box>
       )}

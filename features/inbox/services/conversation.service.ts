@@ -8,6 +8,12 @@ export interface GetConversationsParams {
   before?: string;
 }
 
+export interface GetMultiplePageConversationsParams {
+  pageIds: string[];
+  pageAccessTokens: Record<string, string>;
+  limit?: number;
+}
+
 export interface GetMessagesParams {
   conversationId: string;
   pageAccessToken: string;
@@ -47,6 +53,32 @@ export class ConversationService {
       return response.data;
     } catch (error: any) {
       console.error('ConversationService.getPageConversations error:', error);
+      throw new Error(error.message);
+    }
+  }
+
+  /**
+   * Get conversations from multiple Facebook pages (aggregated)
+   */
+  static async getMultiplePageConversations(params: GetMultiplePageConversationsParams) {
+    try {
+      const { pageIds, pageAccessTokens, limit } = params;
+      
+      console.log('ConversationService.getMultiplePageConversations called with:', params);
+      
+      const response = await authApi.post(
+        `/facebook/conversations/multiple`,
+        {
+          pageIds,
+          pageAccessTokens,
+          limit,
+        }
+      );
+      
+      console.log('ConversationService.getMultiplePageConversations response:', response);
+      return response.data;
+    } catch (error: any) {
+      console.error('ConversationService.getMultiplePageConversations error:', error);
       throw new Error(error.message);
     }
   }

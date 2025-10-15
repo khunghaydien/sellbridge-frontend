@@ -18,17 +18,19 @@ interface Message {
 }
 
 interface InboxListProps {
-  pageId?: string;
+  pageIds: string[];
   filter: string;
   selectedMessageId: string | null;
   onMessageSelect: (messageId: string) => void;
+  websocketConversations?: any[]; // Conversations from websocket
 }
 
 export const InboxList = memo(function InboxList({
-  pageId,
+  pageIds,
   filter,
   selectedMessageId,
   onMessageSelect,
+  websocketConversations = [],
 }: InboxListProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -41,56 +43,71 @@ export const InboxList = memo(function InboxList({
     paging,
     isLoading: conversationsLoading, 
     error: conversationsError,
-    loadConversations,
+    loadMultiplePageConversations,
     selectConversation 
   } = useConversations();
   
   const { pages } = usePages();
 
-  // Debug log on mount
-  useEffect(() => {
-    console.log('InboxList mounted with pageId:', pageId);
-    console.log('Pages available:', pages.length);
-  }, []);
 
-  // Fetch conversations when pageId is available
+  // Fetch conversations when pageIds are available
   useEffect(() => {
-    console.log('=== Fetch Conversations Effect Triggered ===');
-    console.log('pageId:', pageId);
-    console.log('pages.length:', pages.length);
-    console.log('pages:', pages.map(p => ({ id: p.id, name: p.name })));
-    
-    if (pageId && pages.length > 0) {
-      // Find the page from the pages list
-      const currentPage = pages.find(p => p.id === pageId);
+    if (pageIds.length > 0 && pages.length > 0) {
+      // Use multiple page conversations API
+      const pageAccessTokens: Record<string, string> = {};
+      const validPageIds: string[] = [];
       
-      console.log('currentPage found:', currentPage ? 'YES' : 'NO');
+      pageIds.forEach(pageId => {
+        const page = pages.find(p => p.id === pageId);
+        if (page && page.access_token) {
+          pageAccessTokens[pageId] = page.access_token;
+          validPageIds.push(pageId);
+        }
+      });
       
-      if (currentPage) {
-        console.log('✅ Fetching conversations for page:', pageId);
-        console.log('Page name:', currentPage.name);
-        console.log('Page access token:', currentPage.access_token.substring(0, 20) + '...');
-        
-        loadConversations({
-          pageId: pageId,
-          pageAccessToken: currentPage.access_token,
+      if (validPageIds.length > 0) {
+        loadMultiplePageConversations({
+          pageIds: validPageIds,
+          pageAccessTokens,
           limit: 25,
         });
-      } else {
-        console.log('❌ Page not found in pages list:', pageId);
-        console.log('Available page IDs:', pages.map(p => p.id));
       }
-    } else {
-      console.log('❌ Missing pageId or pages not loaded yet');
-      console.log('- pageId:', pageId);
-      console.log('- pages.length:', pages.length);
     }
-  }, [pageId, pages]);
+  }, [pageIds, pages, loadMultiplePageConversations]);
 
-  // Map conversations to messages format
+  // Map conversations to messages format (merge API and websocket conversations)
   useEffect(() => {
-    if (conversations && conversations.length > 0) {
-      const mappedMessages: Message[] = conversations.map((conv) => {
+    // Merge API conversations with websocket conversations
+    const allConversations = [...conversations];
+    
+    // Add websocket conversations that don't already exist in API conversations
+    websocketConversations.forEach(wsConv => {
+      const exists = allConversations.find(conv => conv.id === wsConv.id);
+      if (!exists) {
+        allConversations.push(wsConv);
+      } else {
+        // Update existing conversation with websocket data
+        const index = allConversations.findIndex(conv => conv.id === wsConv.id);
+        if (index >= 0) {
+          allConversations[index] = {
+            ...allConversations[index],
+            snippet: wsConv.snippet, // Update with latest message
+            updated_time: wsConv.updated_time, // Update timestamp
+            unread_count: allConversations[index].unread_count + 1, // Increment unread
+          };
+        }
+      }
+    });
+
+    // Sort by updated_time (newest first)
+    allConversations.sort((a, b) => {
+      const timeA = new Date(a.updated_time || 0).getTime();
+      const timeB = new Date(b.updated_time || 0).getTime();
+      return timeB - timeA;
+    });
+
+    if (allConversations.length > 0) {
+      const mappedMessages: Message[] = allConversations.map((conv) => {
         // Get the first participant (customer)
         const firstParticipant = conv.participants?.data?.[0];
         const senderName = firstParticipant?.name || 'Unknown User';
@@ -114,12 +131,11 @@ export const InboxList = memo(function InboxList({
         };
       });
       
-      console.log('Mapped messages:', mappedMessages);
       setMessages(mappedMessages);
-    } else if (!conversationsLoading && conversations.length === 0) {
+    } else if (!conversationsLoading && conversations.length === 0 && websocketConversations.length === 0) {
       setMessages([]);
     }
-  }, [conversations, conversationsLoading]);
+  }, [conversations, conversationsLoading, websocketConversations]);
 
   const filteredMessages = useMemo(() => {
     let filtered = messages;
@@ -192,17 +208,17 @@ export const InboxList = memo(function InboxList({
       )}
 
       {/* Empty State */}
-      {!conversationsLoading && !conversationsError && pageId && messages.length === 0 && (
+      {!conversationsLoading && !conversationsError && pageIds.length > 0 && messages.length === 0 && (
         <div className="flex flex-col items-center justify-center py-8 text-center">
           <p className="text-sm text-muted-foreground">No conversations found</p>
-          <p className="text-xs text-muted-foreground mt-1">for this page</p>
+          <p className="text-xs text-muted-foreground mt-1">for selected pages</p>
         </div>
       )}
 
       {/* No Page Selected State */}
-      {!pageId && (
+      {pageIds.length === 0 && (
         <div className="flex flex-col items-center justify-center py-8 text-center">
-          <p className="text-sm text-muted-foreground">Select a page to view conversations</p>
+          <p className="text-sm text-muted-foreground">Select pages to view conversations</p>
         </div>
       )}
 
