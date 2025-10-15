@@ -28,7 +28,6 @@ interface UseFacebookWebhookOptions {
 
 interface UseFacebookWebhookReturn {
   messages: WebhookMessage[];
-  conversations: any[]; // Conversations from backend
   isConnected: boolean;
   error: string | null;
   connect: () => void;
@@ -42,7 +41,6 @@ export function useFacebookWebhook(
   const { pageIds = [], accessToken, autoConnect = true } = options;
   
   const [messages, setMessages] = useState<WebhookMessage[]>([]);
-  const [conversations, setConversations] = useState<any[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
@@ -100,30 +98,6 @@ export function useFacebookWebhook(
         setMessages((prev) => [data, ...prev]);
       });
 
-      // Listen for new conversations (emitted by backend)
-      socket.on('new_conversation', (data: any) => {
-        console.log('💬 RECEIVED NEW CONVERSATION:', data);
-        setConversations((prev) => {
-          // Check if conversation already exists (update if exists, add if new)
-          const existingIndex = prev.findIndex(conv => conv.id === data.id);
-          if (existingIndex >= 0) {
-            // Update existing conversation
-            const updated = [...prev];
-            updated[existingIndex] = {
-              ...data,
-              message_count: updated[existingIndex].message_count + 1,
-              unread_count: updated[existingIndex].unread_count + 1,
-            };
-            return updated;
-          } else {
-            // Add new conversation at the beginning (newest first)
-            return [data, ...prev];
-          }
-        });
-      });
-
-
-
       socketRef.current = socket;
     } catch (err) {
       console.error('Error creating socket:', err);
@@ -151,7 +125,6 @@ export function useFacebookWebhook(
 
   const clearMessages = useCallback(() => {
     setMessages([]);
-    setConversations([]);
   }, []);
 
   useEffect(() => {
@@ -166,7 +139,6 @@ export function useFacebookWebhook(
 
   return {
     messages,
-    conversations,
     isConnected,
     error,
     connect,

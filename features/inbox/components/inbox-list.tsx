@@ -24,7 +24,7 @@ interface InboxListProps {
   filter: string;
   selectedMessageId: string | null;
   onMessageSelect: (messageId: string) => void;
-  websocketConversations?: any[]; // Conversations from websocket
+  websocketMessages?: any[]; // Messages from websocket
 }
 
 export const InboxList = memo(function InboxList({
@@ -32,7 +32,7 @@ export const InboxList = memo(function InboxList({
   filter,
   selectedMessageId,
   onMessageSelect,
-  websocketConversations = [],
+  websocketMessages = [],
 }: InboxListProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -77,34 +77,13 @@ export const InboxList = memo(function InboxList({
     }
   }, [pageIds, pages, loadMultiplePageConversations]);
 
-  useEffect(() => {
-    websocketConversations.forEach(wsConv => {
-      const pageId = wsConv.pageId || wsConv.id.split('_')[0];
-      
-      // Check if conversation already exists in Redux store
-      const existingConversation = conversations.find(conv => conv.id === wsConv.id);
-      
-      if (existingConversation) {
-        // Update existing conversation with new data and move to top
-        const updatedConversation = {
-          ...existingConversation,
-          ...wsConv,
-          pageId: pageId,
-        };
-        addWebsocketConversationToStore(updatedConversation, pageId);
-      } else {
-        // New conversation - add to store
-        addWebsocketConversationToStore(wsConv, pageId);
-      }
-    });
-  }, [websocketConversations, addWebsocketConversationToStore, conversations]);
 
   // Handle message updates from websocket
   useEffect(() => {
-    console.log('🔍 WEBSOCKET CONVERSATIONS RECEIVED:', websocketConversations);
+    console.log('🔍 WEBSOCKET MESSAGES RECEIVED:', websocketMessages);
     
-    websocketConversations.forEach(wsData => {
-      console.log('📨 PROCESSING WEBSOCKET DATA:', wsData);
+    websocketMessages.forEach(wsData => {
+      console.log('📨 PROCESSING WEBSOCKET MESSAGE:', wsData);
       
       if (wsData.type === 'message' && wsData.text && !wsData.isEcho) {
         console.log('✅ MESSAGE DATA DETECTED:', {
@@ -191,7 +170,7 @@ export const InboxList = memo(function InboxList({
         }
       }
     });
-  }, [websocketConversations, conversations, addWebsocketConversationToStore, loadMultiplePageConversations, pageIds, pages]);
+  }, [websocketMessages, conversations, addWebsocketConversationToStore, loadMultiplePageConversations, pageIds, pages]);
 
   useEffect(() => {
     if (conversations.length > 0) {

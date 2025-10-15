@@ -19,14 +19,14 @@ export default function Inbox() {
   }, [selectedPageIds, pages]);
 
   // Use WebSocket with scoped subscription
-  const { conversations: websocketConversations } = useFacebookWebhook({
+  const { messages: websocketMessages } = useFacebookWebhook({
     pageIds: subscriptionPageIds,
     // Optional: send a token if required by backend later
     autoConnect: true,
   });
 
-  // Debug log for websocket conversations
-  console.log('🔍 INBOX - WEBSOCKET CONVERSATIONS:', websocketConversations);
+  // Debug log for websocket messages
+  console.log('🔍 INBOX - WEBSOCKET MESSAGES:', websocketMessages);
 
 
   return (
@@ -46,7 +46,7 @@ export default function Inbox() {
           filter={activeFilter}
           selectedMessageId={selectedMessageId}
           onMessageSelect={setSelectedMessageId}
-          websocketConversations={websocketConversations}
+          websocketMessages={websocketMessages}
         />
       </div>
 
