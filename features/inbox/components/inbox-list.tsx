@@ -3,7 +3,7 @@
 import { memo, useState, useMemo, useCallback, useRef, useEffect } from "react";
 import clsx from "clsx";
 import { IconSearch } from "@/icons";
-import { useConversations } from "../hooks";
+import { useConversations, useWebsocketMessages } from "../hooks";
 import { usePages } from "@/features/page/hooks";
 import { CircularProgress, Alert } from "@mui/material";
 import { motion, AnimatePresence } from "framer-motion";
@@ -45,11 +45,13 @@ export const InboxList = memo(function InboxList({
     paging,
     isLoading: conversationsLoading, 
     error: conversationsError,
-    loadMultiplePageConversations,
-    addWebsocketConversationToStore
+    loadMultiplePageConversations
   } = useConversations();
   
   const { pages } = usePages();
+
+  // Use custom hook to handle websocket messages
+  useWebsocketMessages({ websocketMessages });
 
 
   // Fetch conversations when pageIds are available
@@ -78,97 +80,6 @@ export const InboxList = memo(function InboxList({
   }, [pageIds, pages, loadMultiplePageConversations]);
 
 
-  // Handle message updates from websocket
-  useEffect(() => {
-    if (websocketMessages.length === 0) return;
-    
-    console.log('🔍 WEBSOCKET MESSAGES RECEIVED:', websocketMessages);
-    
-    websocketMessages.forEach(wsData => {
-      console.log('📨 PROCESSING WEBSOCKET MESSAGE:', wsData);
-      
-      if (wsData.type === 'message' && wsData.text && !wsData.isEcho) {
-        console.log('✅ MESSAGE DATA DETECTED:', {
-          pageId: wsData.pageId,
-          senderId: wsData.senderId,
-          recipientId: wsData.recipientId,
-          text: wsData.text
-        });
-        
-        // Find conversation by comparing pageId and senderId with senders.data
-        const existingConversation = conversations.find(conv => {
-          const pageIdMatch = conv.pageId === wsData.pageId;
-          const senderIdMatch = conv.senders?.data?.[0]?.id === wsData.senderId;
-          const recipientIdMatch = conv.senders?.data?.[1]?.id === wsData.recipientId;
-          
-          return pageIdMatch && senderIdMatch && recipientIdMatch;
-        });
-        
-        console.log('🔍 SEARCHING FOR CONVERSATION:', {
-          searchPageId: wsData.pageId,
-          searchSenderId: wsData.senderId,
-          searchRecipientId: wsData.recipientId,
-          totalConversations: conversations.length,
-          found: !!existingConversation
-        });
-        
-        if (existingConversation) {
-          console.log('✅ CONVERSATION FOUND, UPDATING SNIPPET:', {
-            conversationId: existingConversation.id,
-            oldSnippet: existingConversation.snippet,
-            newSnippet: wsData.text
-          });
-          
-          // Update existing conversation snippet
-          const updatedConversation = {
-            ...existingConversation,
-            snippet: wsData.text,
-            updated_time: wsData.created_time,
-            unread_count: existingConversation.unread_count + 1,
-          };
-          
-          // Move to top and update
-          addWebsocketConversationToStore(updatedConversation, wsData.pageId);
-        } else {
-          // Conversation not found in store, fetch entire list
-          console.log('❌ CONVERSATION NOT FOUND, FETCHING ENTIRE LIST...');
-          
-          // Use setTimeout to avoid React #185 error
-          setTimeout(() => {
-            if (pageIds.length > 0 && pages.length > 0) {
-              const pageAccessTokens: Record<string, string> = {};
-              const validPageIds: string[] = [];
-              
-              pageIds.forEach(pageId => {
-                const page = pages.find(p => p.id === pageId);
-                if (page && page.access_token) {
-                  pageAccessTokens[pageId] = page.access_token;
-                  validPageIds.push(pageId);
-                }
-              });
-              
-              console.log('🔄 FETCHING CONVERSATIONS WITH:', {
-                validPageIds,
-                pageAccessTokens: Object.keys(pageAccessTokens)
-              });
-              
-              if (validPageIds.length > 0) {
-                loadMultiplePageConversations({
-                  pageIds: validPageIds,
-                  pageAccessTokens,
-                  limit: 25,
-                });
-              } else {
-                console.log('⚠️ NO VALID PAGE IDS OR ACCESS TOKENS FOUND');
-              }
-            } else {
-              console.log('⚠️ NO PAGE IDS OR PAGES AVAILABLE');
-            }
-          }, 0);
-        }
-      }
-    });
-  }, [websocketMessages, conversations, addWebsocketConversationToStore, loadMultiplePageConversations, pageIds, pages]);
 
   useEffect(() => {
     if (conversations.length > 0) {
