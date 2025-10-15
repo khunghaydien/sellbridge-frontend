@@ -79,7 +79,7 @@ export const InboxList = memo(function InboxList({
 
 
   // Handle message updates from websocket
-  const handleWebsocketMessages = useCallback(() => {
+  useEffect(() => {
     if (websocketMessages.length === 0) return;
     
     console.log('🔍 WEBSOCKET MESSAGES RECEIVED:', websocketMessages);
@@ -132,46 +132,43 @@ export const InboxList = memo(function InboxList({
         } else {
           // Conversation not found in store, fetch entire list
           console.log('❌ CONVERSATION NOT FOUND, FETCHING ENTIRE LIST...');
-          console.log('📋 CURRENT PAGE IDS:', pageIds);
-          console.log('📋 CURRENT PAGES:', pages);
           
-          if (pageIds.length > 0 && pages.length > 0) {
-            const pageAccessTokens: Record<string, string> = {};
-            const validPageIds: string[] = [];
-            
-            pageIds.forEach(pageId => {
-              const page = pages.find(p => p.id === pageId);
-              if (page && page.access_token) {
-                pageAccessTokens[pageId] = page.access_token;
-                validPageIds.push(pageId);
-              }
-            });
-            
-            console.log('🔄 FETCHING CONVERSATIONS WITH:', {
-              validPageIds,
-              pageAccessTokens: Object.keys(pageAccessTokens)
-            });
-            
-            if (validPageIds.length > 0) {
-              loadMultiplePageConversations({
-                pageIds: validPageIds,
-                pageAccessTokens,
-                limit: 25,
+          // Use setTimeout to avoid React #185 error
+          setTimeout(() => {
+            if (pageIds.length > 0 && pages.length > 0) {
+              const pageAccessTokens: Record<string, string> = {};
+              const validPageIds: string[] = [];
+              
+              pageIds.forEach(pageId => {
+                const page = pages.find(p => p.id === pageId);
+                if (page && page.access_token) {
+                  pageAccessTokens[pageId] = page.access_token;
+                  validPageIds.push(pageId);
+                }
               });
+              
+              console.log('🔄 FETCHING CONVERSATIONS WITH:', {
+                validPageIds,
+                pageAccessTokens: Object.keys(pageAccessTokens)
+              });
+              
+              if (validPageIds.length > 0) {
+                loadMultiplePageConversations({
+                  pageIds: validPageIds,
+                  pageAccessTokens,
+                  limit: 25,
+                });
+              } else {
+                console.log('⚠️ NO VALID PAGE IDS OR ACCESS TOKENS FOUND');
+              }
             } else {
-              console.log('⚠️ NO VALID PAGE IDS OR ACCESS TOKENS FOUND');
+              console.log('⚠️ NO PAGE IDS OR PAGES AVAILABLE');
             }
-          } else {
-            console.log('⚠️ NO PAGE IDS OR PAGES AVAILABLE');
-          }
+          }, 0);
         }
       }
     });
   }, [websocketMessages, conversations, addWebsocketConversationToStore, loadMultiplePageConversations, pageIds, pages]);
-
-  useEffect(() => {
-    handleWebsocketMessages();
-  }, [handleWebsocketMessages]);
 
   useEffect(() => {
     if (conversations.length > 0) {
