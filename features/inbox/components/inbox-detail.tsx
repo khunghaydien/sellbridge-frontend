@@ -172,8 +172,8 @@ export const InboxDetail = memo(function InboxDetail({ conversationId, pageIds }
       >
         {/* Reverse messages array so newest messages appear at the bottom */}
         {[...messages].reverse().map((msg: any) => {
-          // Check if message is from any of the selected pages
-          const isOwnMessage = pageIds.includes(msg.from?.id);
+          // Check if message is from any of the selected pages (compare pageId with senderId)
+          const isOwnMessage = pageIds.includes(msg.senderId);
           const from: MessageFrom = msg.from || { id: '', name: 'Unknown', picture: null };
           
           return (

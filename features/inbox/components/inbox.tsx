@@ -25,6 +25,9 @@ export default function Inbox() {
     autoConnect: true,
   });
 
+  // Debug log for websocket conversations
+  console.log('🔍 INBOX - WEBSOCKET CONVERSATIONS:', websocketConversations);
+
 
   return (
     <div className="messages-page w-full max-w-[1400px] h-[calc(100vh-75px)] flex gap-4 p-4">

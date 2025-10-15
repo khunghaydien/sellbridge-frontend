@@ -99,6 +99,78 @@ export const InboxList = memo(function InboxList({
     });
   }, [websocketConversations, addWebsocketConversationToStore, conversations]);
 
+  // Handle message updates from websocket
+  useEffect(() => {
+    console.log('🔍 WEBSOCKET CONVERSATIONS RECEIVED:', websocketConversations);
+    
+    websocketConversations.forEach(wsData => {
+      console.log('📨 PROCESSING WEBSOCKET DATA:', wsData);
+      
+      if (wsData.type === 'message' && wsData.text && !wsData.isEcho) {
+        console.log('✅ MESSAGE DATA DETECTED:', {
+          pageId: wsData.pageId,
+          senderId: wsData.senderId,
+          text: wsData.text,
+          conversationId: `${wsData.pageId}_${wsData.senderId}`
+        });
+        // Find conversation by pageId and senderId
+        const existingConversation = conversations.find(conv => 
+          conv.pageId === wsData.pageId && 
+          conv.participants?.data?.[0]?.id === wsData.senderId
+        );
+        
+        console.log('🔍 SEARCHING FOR CONVERSATION:', {
+          searchPageId: wsData.pageId,
+          searchSenderId: wsData.senderId,
+          totalConversations: conversations.length,
+          found: !!existingConversation
+        });
+        
+        if (existingConversation) {
+          console.log('✅ CONVERSATION FOUND, UPDATING SNIPPET:', {
+            conversationId: existingConversation.id,
+            oldSnippet: existingConversation.snippet,
+            newSnippet: wsData.text
+          });
+          
+          // Update existing conversation snippet
+          const updatedConversation = {
+            ...existingConversation,
+            snippet: wsData.text,
+            updated_time: wsData.created_time,
+            unread_count: existingConversation.unread_count + 1,
+          };
+          
+          // Move to top and update
+          addWebsocketConversationToStore(updatedConversation, wsData.pageId);
+        } else {
+          // Conversation not found in store, fetch entire list
+          console.log('❌ CONVERSATION NOT FOUND, FETCHING ENTIRE LIST...');
+          if (pageIds.length > 0 && pages.length > 0) {
+            const pageAccessTokens: Record<string, string> = {};
+            const validPageIds: string[] = [];
+            
+            pageIds.forEach(pageId => {
+              const page = pages.find(p => p.id === pageId);
+              if (page && page.access_token) {
+                pageAccessTokens[pageId] = page.access_token;
+                validPageIds.push(pageId);
+              }
+            });
+            
+            if (validPageIds.length > 0) {
+              loadMultiplePageConversations({
+                pageIds: validPageIds,
+                pageAccessTokens,
+                limit: 25,
+              });
+            }
+          }
+        }
+      }
+    });
+  }, [websocketConversations, conversations, addWebsocketConversationToStore, loadMultiplePageConversations, pageIds, pages]);
+
   useEffect(() => {
     if (conversations.length > 0) {
       const mappedMessages: Message[] = conversations.map((conv) => {

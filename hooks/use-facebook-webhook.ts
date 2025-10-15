@@ -96,13 +96,13 @@ export function useFacebookWebhook(
 
       // Listen for Facebook messages
       socket.on('new_message', (data: WebhookMessage) => {
-        console.log('Received new Facebook message:', data);
+        console.log('📨 RECEIVED NEW FACEBOOK MESSAGE:', data);
         setMessages((prev) => [data, ...prev]);
       });
 
       // Listen for new conversations (emitted by backend)
       socket.on('new_conversation', (data: any) => {
-        console.log('Received new conversation:', data);
+        console.log('💬 RECEIVED NEW CONVERSATION:', data);
         setConversations((prev) => {
           // Check if conversation already exists (update if exists, add if new)
           const existingIndex = prev.findIndex(conv => conv.id === data.id);
