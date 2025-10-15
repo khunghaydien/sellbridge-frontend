@@ -1,3 +1,5 @@
+"use client";
+
 import { useCallback, useEffect, useRef } from 'react';
 import { useConversations } from './use-conversations';
 import { usePages } from '@/features/page/hooks';
