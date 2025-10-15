@@ -79,7 +79,9 @@ export const InboxList = memo(function InboxList({
 
 
   // Handle message updates from websocket
-  useEffect(() => {
+  const handleWebsocketMessages = useCallback(() => {
+    if (websocketMessages.length === 0) return;
+    
     console.log('🔍 WEBSOCKET MESSAGES RECEIVED:', websocketMessages);
     
     websocketMessages.forEach(wsData => {
@@ -107,12 +109,7 @@ export const InboxList = memo(function InboxList({
           searchSenderId: wsData.senderId,
           searchRecipientId: wsData.recipientId,
           totalConversations: conversations.length,
-          found: !!existingConversation,
-          conversationsList: conversations.map(c => ({
-            id: c.id,
-            pageId: c.pageId,
-            senders: c.senders?.data?.map(s => ({ id: s.id, name: s.name }))
-          }))
+          found: !!existingConversation
         });
         
         if (existingConversation) {
@@ -173,6 +170,10 @@ export const InboxList = memo(function InboxList({
   }, [websocketMessages, conversations, addWebsocketConversationToStore, loadMultiplePageConversations, pageIds, pages]);
 
   useEffect(() => {
+    handleWebsocketMessages();
+  }, [handleWebsocketMessages]);
+
+  useEffect(() => {
     if (conversations.length > 0) {
       console.log('📋 CONVERSATIONS FROM API:', conversations);
       
@@ -180,8 +181,7 @@ export const InboxList = memo(function InboxList({
         console.log('🔍 MAPPING CONVERSATION:', {
           id: conv.id,
           pageId: conv.pageId,
-          participants: conv.participants?.data?.[0],
-          senders: conv.senders?.data?.map(s => ({ id: s.id, name: s.name }))
+          participants: conv.participants?.data?.[0]
         });
         
         const firstParticipant = conv.participants?.data?.[0];
