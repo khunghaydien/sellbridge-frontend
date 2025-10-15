@@ -132,6 +132,23 @@ const conversationSlice = createSlice({
     clearConversationError: (state) => {
       state.error = null;
     },
+    // Update conversation snippet from message data
+    updateConversationSnippet: (state, action: PayloadAction<{ conversationId: string; snippet: string; updated_time: string }>) => {
+      const { conversationId, snippet, updated_time } = action.payload;
+      const conversationIndex = state.conversations.findIndex(conv => conv.id === conversationId);
+      
+      if (conversationIndex >= 0) {
+        // Update snippet and time
+        state.conversations[conversationIndex].snippet = snippet;
+        state.conversations[conversationIndex].updated_time = updated_time;
+        state.conversations[conversationIndex].unread_count += 1;
+        
+        // Move to top
+        const updatedConversation = state.conversations[conversationIndex];
+        state.conversations.splice(conversationIndex, 1);
+        state.conversations.unshift(updatedConversation);
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -207,7 +224,7 @@ const conversationSlice = createSlice({
 });
 
 // Export actions
-export const { setSelectedConversation, clearConversations, clearConversationError, addWebsocketConversation } = conversationSlice.actions;
+export const { setSelectedConversation, clearConversations, clearConversationError, addWebsocketConversation, updateConversationSnippet } = conversationSlice.actions;
 
 
 // Export reducer

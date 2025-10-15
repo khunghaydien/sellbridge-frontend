@@ -110,20 +110,30 @@ export const InboxList = memo(function InboxList({
         console.log('✅ MESSAGE DATA DETECTED:', {
           pageId: wsData.pageId,
           senderId: wsData.senderId,
-          text: wsData.text,
-          conversationId: `${wsData.pageId}_${wsData.senderId}`
+          recipientId: wsData.recipientId,
+          text: wsData.text
         });
-        // Find conversation by pageId and senderId
-        const existingConversation = conversations.find(conv => 
-          conv.pageId === wsData.pageId && 
-          conv.participants?.data?.[0]?.id === wsData.senderId
-        );
+        
+        // Find conversation by comparing pageId and senderId with senders.data
+        const existingConversation = conversations.find(conv => {
+          const pageIdMatch = conv.pageId === wsData.pageId;
+          const senderIdMatch = conv.senders?.data?.[0]?.id === wsData.senderId;
+          const recipientIdMatch = conv.senders?.data?.[1]?.id === wsData.recipientId;
+          
+          return pageIdMatch && senderIdMatch && recipientIdMatch;
+        });
         
         console.log('🔍 SEARCHING FOR CONVERSATION:', {
           searchPageId: wsData.pageId,
           searchSenderId: wsData.senderId,
+          searchRecipientId: wsData.recipientId,
           totalConversations: conversations.length,
-          found: !!existingConversation
+          found: !!existingConversation,
+          conversationsList: conversations.map(c => ({
+            id: c.id,
+            pageId: c.pageId,
+            senders: c.senders?.data?.map(s => ({ id: s.id, name: s.name }))
+          }))
         });
         
         if (existingConversation) {
@@ -146,6 +156,9 @@ export const InboxList = memo(function InboxList({
         } else {
           // Conversation not found in store, fetch entire list
           console.log('❌ CONVERSATION NOT FOUND, FETCHING ENTIRE LIST...');
+          console.log('📋 CURRENT PAGE IDS:', pageIds);
+          console.log('📋 CURRENT PAGES:', pages);
+          
           if (pageIds.length > 0 && pages.length > 0) {
             const pageAccessTokens: Record<string, string> = {};
             const validPageIds: string[] = [];
@@ -158,13 +171,22 @@ export const InboxList = memo(function InboxList({
               }
             });
             
+            console.log('🔄 FETCHING CONVERSATIONS WITH:', {
+              validPageIds,
+              pageAccessTokens: Object.keys(pageAccessTokens)
+            });
+            
             if (validPageIds.length > 0) {
               loadMultiplePageConversations({
                 pageIds: validPageIds,
                 pageAccessTokens,
                 limit: 25,
               });
+            } else {
+              console.log('⚠️ NO VALID PAGE IDS OR ACCESS TOKENS FOUND');
             }
+          } else {
+            console.log('⚠️ NO PAGE IDS OR PAGES AVAILABLE');
           }
         }
       }
@@ -173,7 +195,16 @@ export const InboxList = memo(function InboxList({
 
   useEffect(() => {
     if (conversations.length > 0) {
+      console.log('📋 CONVERSATIONS FROM API:', conversations);
+      
       const mappedMessages: Message[] = conversations.map((conv) => {
+        console.log('🔍 MAPPING CONVERSATION:', {
+          id: conv.id,
+          pageId: conv.pageId,
+          participants: conv.participants?.data?.[0],
+          senders: conv.senders?.data?.map(s => ({ id: s.id, name: s.name }))
+        });
+        
         const firstParticipant = conv.participants?.data?.[0];
         const senderName = firstParticipant?.name || 'Unknown User';
         const senderPicture = firstParticipant?.picture || null;
