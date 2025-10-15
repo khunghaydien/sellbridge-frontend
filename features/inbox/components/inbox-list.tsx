@@ -6,6 +6,7 @@ import { IconSearch } from "@/icons";
 import { useConversations } from "../hooks";
 import { usePages } from "@/features/page/hooks";
 import { CircularProgress, Alert } from "@mui/material";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface Message {
   id: string;
@@ -35,17 +36,16 @@ export const InboxList = memo(function InboxList({
 }: InboxListProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Redux hooks
   const { 
     conversations, 
     paging,
     isLoading: conversationsLoading, 
     error: conversationsError,
     loadMultiplePageConversations,
-    selectConversation,
     addWebsocketConversationToStore
   } = useConversations();
   
@@ -77,31 +77,35 @@ export const InboxList = memo(function InboxList({
     }
   }, [pageIds, pages, loadMultiplePageConversations]);
 
-  // Process websocket conversations and add to Redux store
   useEffect(() => {
     websocketConversations.forEach(wsConv => {
-      const pageId = wsConv.pageId || wsConv.id.split('_')[0]; // Extract pageId from conversation ID
-      addWebsocketConversationToStore(wsConv, pageId);
+      const pageId = wsConv.pageId || wsConv.id.split('_')[0];
+      
+      // Check if conversation already exists in Redux store
+      const existingConversation = conversations.find(conv => conv.id === wsConv.id);
+      
+      if (existingConversation) {
+        // Update existing conversation with new data and move to top
+        const updatedConversation = {
+          ...existingConversation,
+          ...wsConv,
+          pageId: pageId,
+        };
+        addWebsocketConversationToStore(updatedConversation, pageId);
+      } else {
+        // New conversation - add to store
+        addWebsocketConversationToStore(wsConv, pageId);
+      }
     });
-  }, [websocketConversations, addWebsocketConversationToStore]);
+  }, [websocketConversations, addWebsocketConversationToStore, conversations]);
 
-  // Map conversations to messages format
   useEffect(() => {
     if (conversations.length > 0) {
-      // Sort by updated_time (newest first)
-      const sortedConversations = [...conversations].sort((a, b) => {
-        const timeA = new Date(a.updated_time || 0).getTime();
-        const timeB = new Date(b.updated_time || 0).getTime();
-        return timeB - timeA;
-      });
-
-      const mappedMessages: Message[] = sortedConversations.map((conv) => {
-        // Get the first participant (customer)
+      const mappedMessages: Message[] = conversations.map((conv) => {
         const firstParticipant = conv.participants?.data?.[0];
         const senderName = firstParticipant?.name || 'Unknown User';
         const senderPicture = firstParticipant?.picture || null;
         
-        // Format time
         const timeString = conv.updated_time 
           ? new Date(conv.updated_time).toLocaleTimeString('en-US', { 
               hour: '2-digit', 
@@ -116,8 +120,8 @@ export const InboxList = memo(function InboxList({
           preview: conv.snippet || 'No message preview',
           time: timeString,
           isUnread: conv.unread_count > 0,
-          hasPhone: false, // No longer checking email format
-          isImportant: conv.unread_count > 5, // Important if many unread
+          hasPhone: false,
+          isImportant: conv.unread_count > 5,
         };
       });
       
@@ -130,14 +134,12 @@ export const InboxList = memo(function InboxList({
   const filteredMessages = useMemo(() => {
     let filtered = messages;
 
-    // Filter by search query
     if (searchQuery.trim()) {
       filtered = filtered.filter(message =>
         message.sender.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
-    // Filter by selected filter
     switch (filter) {
       case "unread":
         filtered = filtered.filter(message => message.isUnread);
@@ -160,6 +162,31 @@ export const InboxList = memo(function InboxList({
 
     return filtered;
   }, [filter, searchQuery, messages]);
+
+  // Infinite scroll handler
+  const handleScroll = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container || isLoadingMore || !paging?.cursors?.after) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const isNearTop = scrollTop < 100; // Near top of scroll
+
+    if (isNearTop) {
+      setIsLoadingMore(true);
+      // TODO: Implement load more conversations
+      // loadMoreConversations();
+      setTimeout(() => setIsLoadingMore(false), 1000); // Placeholder
+    }
+  }, [isLoadingMore, paging]);
+
+  // Add scroll listener
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.addEventListener('scroll', handleScroll);
+      return () => container.removeEventListener('scroll', handleScroll);
+    }
+  }, [handleScroll]);
 
   return (
     <div className="h-full flex flex-col px-2 bg-gradient-to-b from-background to-muted rounded-xl">
@@ -184,10 +211,14 @@ export const InboxList = memo(function InboxList({
 
       {/* Loading State */}
       {conversationsLoading && !messages.length && (
-        <div className="flex flex-col items-center justify-center py-8 gap-2">
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex flex-col items-center justify-center py-8 gap-2"
+        >
           <CircularProgress size={32} />
           <p className="text-sm text-muted-foreground">Loading conversations...</p>
-        </div>
+        </motion.div>
       )}
 
       {/* Error State */}
@@ -199,17 +230,25 @@ export const InboxList = memo(function InboxList({
 
       {/* Empty State */}
       {!conversationsLoading && !conversationsError && pageIds.length > 0 && messages.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-8 text-center">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col items-center justify-center py-8 text-center"
+        >
           <p className="text-sm text-muted-foreground">No conversations found</p>
           <p className="text-xs text-muted-foreground mt-1">for selected pages</p>
-        </div>
+        </motion.div>
       )}
 
       {/* No Page Selected State */}
       {pageIds.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-8 text-center">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col items-center justify-center py-8 text-center"
+        >
           <p className="text-sm text-muted-foreground">Select pages to view conversations</p>
-        </div>
+        </motion.div>
       )}
 
       {/* Message List with Infinite Scroll */}
@@ -224,15 +263,27 @@ export const InboxList = memo(function InboxList({
           </div>
         ) : (
           <div className="flex flex-col gap-1">
-            {filteredMessages.map((message) => (
-              <div
-                key={message.id}
-                onClick={() => onMessageSelect(message.id)}
-                className={clsx(
-                  "p-4 cursor-pointer transition-colors bg-muted/20 hover:bg-muted/50 rounded-lg",
-                  selectedMessageId === message.id && "bg-primary/5 border-primary/20"
-                )}
-              >
+            <AnimatePresence mode="popLayout">
+              {filteredMessages.map((message, index) => (
+                <motion.div
+                  key={message.id}
+                  layout
+                  initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ 
+                    duration: 0.3,
+                    delay: index * 0.02,
+                    layout: { duration: 0.2, ease: "easeInOut" }
+                  }}
+                  onClick={() => onMessageSelect(message.id)}
+                  className={clsx(
+                    "p-4 cursor-pointer transition-colors bg-muted/20 hover:bg-muted/50 rounded-lg",
+                    selectedMessageId === message.id && "bg-primary/5 border-primary/20"
+                  )}
+                >
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     {message.senderPicture && (
@@ -272,8 +323,24 @@ export const InboxList = memo(function InboxList({
                     <span className="text-xs text-yellow-500">⭐</span>
                   )}
                 </div>
-              </div>
-            ))}
+                </motion.div>
+              ))}
+            </AnimatePresence>
+
+            {/* Loading more indicator */}
+            <AnimatePresence>
+              {isLoadingMore && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="p-4 flex items-center justify-center"
+                >
+                  <CircularProgress size={20} />
+                  <span className="ml-2 text-xs text-muted-foreground">Loading more...</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Pagination info */}
             {paging && (paging.cursors?.after || paging.cursors?.before) && (

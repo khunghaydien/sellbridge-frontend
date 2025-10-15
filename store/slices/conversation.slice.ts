@@ -62,12 +62,9 @@ export const fetchConversations = createAsyncThunk(
   'conversation/fetchConversations',
   async (params: GetConversationsParams, { rejectWithValue }) => {
     try {
-      console.log('fetchConversations thunk started with params:', params);
       const response = await ConversationService.getPageConversations(params);
-      console.log('fetchConversations response:', response);
       return { response, params };
     } catch (error: any) {
-      console.error('fetchConversations error:', error);
       return rejectWithValue(error.message || 'Failed to fetch conversations');
     }
   }
@@ -78,12 +75,9 @@ export const fetchMultiplePageConversations = createAsyncThunk(
   'conversation/fetchMultiplePageConversations',
   async (params: GetMultiplePageConversationsParams, { rejectWithValue }) => {
     try {
-      console.log('fetchMultiplePageConversations thunk started with params:', params);
       const response = await ConversationService.getMultiplePageConversations(params);
-      console.log('fetchMultiplePageConversations response:', response);
       return { response, params };
     } catch (error: any) {
-      console.error('fetchMultiplePageConversations error:', error);
       return rejectWithValue(error.message || 'Failed to fetch multiple page conversations');
     }
   }
@@ -116,15 +110,20 @@ const conversationSlice = createSlice({
       const existingIndex = state.conversations.findIndex(conv => conv.id === conversation.id);
       
       if (existingIndex >= 0) {
-        // Update existing conversation
-        state.conversations[existingIndex] = {
+        // Update existing conversation and move to top
+        const updatedConversation = {
           ...state.conversations[existingIndex],
           ...conversation,
           pageId: pageId,
         };
+        
+        // Remove from current position
+        state.conversations.splice(existingIndex, 1);
+        // Add to beginning (top of list)
+        state.conversations.unshift(updatedConversation);
       } else {
-        // Add new conversation
-        state.conversations.push({
+        // Add new conversation to top
+        state.conversations.unshift({
           ...conversation,
           pageId: pageId,
         });

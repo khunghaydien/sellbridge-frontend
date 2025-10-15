@@ -65,12 +65,12 @@ export const InboxDetail = memo(function InboxDetail({ conversationId, pageIds }
     }
   }, [conversationId, conversationAccessToken]);
 
-  // Scroll to bottom when messages load
+  // Scroll to bottom when messages load or conversation changes
   useEffect(() => {
     if (messages.length > 0 && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages]);
+  }, [messages, conversationId]);
 
   const handleSend = async () => {
     if (!inputValue.trim() || !conversationId || !conversationAccessToken || pageIds.length === 0 || !recipientId) {
