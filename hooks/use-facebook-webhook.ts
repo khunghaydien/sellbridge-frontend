@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { useAuthContext } from '@/providers';
 
 interface WebhookMessage {
   type: 'message' | 'postback' | 'delivery' | 'read';
@@ -39,7 +38,6 @@ export function useFacebookWebhook(
   options: UseFacebookWebhookOptions = {}
 ): UseFacebookWebhookReturn {
   const { pageId, autoConnect = true } = options;
-  const { isAuthenticated, user } = useAuthContext();
   
   const [messages, setMessages] = useState<WebhookMessage[]>([]);
   const [isConnected, setIsConnected] = useState(false);
@@ -74,23 +72,6 @@ export function useFacebookWebhook(
         setIsConnected(true);
         setError(null);
 
-        // Send user info to backend (if available)
-        if (user?.id) {
-          console.log('Sending user info to backend:', user.id);
-          socket.emit('authenticate', { userId: user.id, userName: user.name });
-        } else {
-          console.log('No user info available, connecting anonymously');
-        }
-
-        // Join all pages to receive messages from all pages
-        socket.emit('joinAllPages');
-        console.log('Joined all pages to receive messages');
-        
-        // If pageId is provided, also join that specific page's room
-        if (pageId) {
-          socket.emit('joinPage', pageId);
-          console.log(`Also joined specific page room: ${pageId}`);
-        }
       });
 
       socket.on('disconnect', (reason) => {
@@ -110,30 +91,7 @@ export function useFacebookWebhook(
         setMessages((prev) => [data, ...prev]);
       });
 
-      // Listen for webhook test messages
-      socket.on('webhook_test', (data: any) => {
-        console.log('Received webhook_test event:', data);
-        setMessages((prev) => [data, ...prev]);
-      });
 
-      // Listen for page changes
-      socket.on('page_change', (data: any) => {
-        console.log('Received page_change event:', data);
-        setMessages((prev) => [data, ...prev]);
-      });
-
-      // Listen for system events
-      socket.on('auth_success', (data: any) => {
-        console.log('Authentication successful:', data);
-      });
-
-      socket.on('joined_all_pages', (data: any) => {
-        console.log('Successfully joined all pages:', data);
-      });
-
-      socket.on('connected', (data: any) => {
-        console.log('Connection confirmed:', data);
-      });
 
       socketRef.current = socket;
     } catch (err) {
